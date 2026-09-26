@@ -21,14 +21,15 @@ an actual access failure, not ordinary GPT runs or repeated daily qualification.
 4. Check endpoint access and one actual requested project read through the app.
    A successful health response alone is not proof of a file read. The read
    need not use a prescribed tool order, audit nonce, or three receipts.
-5. Use the common temporary-chat flow with explicit Latest then requested
-   effort (default Pro / 6 Pro). Enable temporary-chat personalization before submission; preserve account settings.
-   Save the actual result before closing the owned tab.
+5. Use the common temporary-chat flow. On this Windows Plus profile, explicitly
+   select **GPT-5.6 Sol → High** (`extended`). Enable temporary-chat
+   personalization before submission; preserve account settings. Save the actual
+   result before closing the owned tab.
 
-Do not require a non-Pro preliminary run, a command canary, a fixed outcome
-marker, or a recurring freshness test. Oracle 0.20.0's exact published bytes
-provide native `latest/select` and Pro effort support; the browser must
-explicitly select Latest rather than the numeric older model.
+Do not require a preliminary run, a command canary, a fixed outcome marker, or
+a recurring freshness test. The hash-bound Oracle 0.20.0 adapter used by this
+profile verifies GPT-5.6 Sol and High before submission and fails closed when
+that requested state cannot be proven.
 
 ## Diagnosis
 

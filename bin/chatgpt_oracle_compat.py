@@ -308,29 +308,72 @@ PATCHES = {
     },
 }
 
-# Oracle 0.20.0 upstream is mostly native for ChatGPT Latest / GPT-6 Astra /
-# verified Pro selection. Keep the six unaffected files below byte-for-byte
-# pristine; two narrowly scoped compatibility contracts cover account-specific
-# Korean Latest labeling and the observed four-position thinking slider.
+# Oracle 0.20.0 compatibility is pinned to the published package and exact file
+# hashes. Preserve the five unaffected files below; scoped patches cover the
+# Korean Latest label, current Plus model button / High-Power picker / 0..2 High
+# slider, current transcript search-unit selectors / assistant message body,
+# and known four- and five-position layouts. Unknown UI or source hashes fail closed.
 CURRENT_PRISTINE_FILES = {
     "package.json": "6a58ba062b408ef4cc3e4e248477cdcb39f5fb752fadaa63bac2fe7ed4ae30b5",
     "dist/bin/oracle-cli.js": "a139761f1ff35eb521fb5523928e31babb287549258311d66bd793e26ba2faec",
     "dist/src/browser/chromeLifecycle.js": "1760b65c8f332fa56498f27d51572124d788dbcfe58a8550dbacdc90fe70386c",
     "dist/src/browser/index.js": "63d387b2042f93d2d60f928e3f3cb6c52e6a419b75ecdc6ea47c84d50a20c8fb",
     "dist/src/sessionManager.js": "4f003531d37fbcb4cd1e1d01e6d11df76cf3503d8611ad85e32c58c3943b282d",
-    "dist/src/browser/actions/assistantResponse.js": "37ee8ece58ac9fa81caec0d725c20dfa7062d73d6025942a583327b51cce684e",
 }
 
 CURRENT_PATCHES = {
+    "dist/src/browser/constants.js": {
+        "patch": "constants.plus-accessible-model-button.patch",
+        "pristine": "a7d1c2cfff33d2ce59dbcf562827b8452ecc229c454dd8cc5aea25fe9dbb3ec6",
+        "patched": "a6badd247faa852371b2050d985bd7dff91827becd27b0e0cadcb622d20ff784",
+        "legacy_patched": ["5e18b6084b7013090e0267208ce35cf2870b85673f845aad51873ff0cdf14d64"],
+        "legacy_patches": {
+            "5e18b6084b7013090e0267208ce35cf2870b85673f845aad51873ff0cdf14d64":
+                "constants.plus-accessible-model-button.previous.patch",
+        },
+    },
+    "dist/src/browser/actions/assistantResponse.js": {
+        "patch": "assistantResponse.current-message-body.patch",
+        "pristine": "37ee8ece58ac9fa81caec0d725c20dfa7062d73d6025942a583327b51cce684e",
+        "patched": "e350e943fb41544aea873cc2c7f849f3778a28ebd05a5faf37a794c4fa9f60ec",
+    },
+    "dist/src/browser/liveTabs.js": {
+        "patch": "liveTabs.current-user-unit.patch",
+        "pristine": "41d7e58fa7dd56ca4fe445097565e5ae7a40db7ceabc61d2429b3d66ac5b1f05",
+        "patched": "5f38c956fb30cee82ddba384713e43f2ac987608dccf0bb2e7818edcfde07500",
+    },
     "dist/src/browser/actions/modelSelection.js": {
-        "patch": "modelSelection.korean-latest-label.patch",
+        "patch": "modelSelection.plus-picker-view.patch",
         "pristine": "69128859b347fa45dc4b41714e89c4ea394c839ad6cfccc1e19681f7090b31fc",
-        "patched": "d3ef19a58ce3ac5f35905ece1cba12ecc11d160ee8e15a76213147cefa365fa8",
+        "patched": "f1a1064b8f781bb3ecaca46908e092d1406f4c92a4bedc8d8009a7c5ecb8f87a",
+        "legacy_patched": ["d3ef19a58ce3ac5f35905ece1cba12ecc11d160ee8e15a76213147cefa365fa8"],
+        "legacy_patches": {
+            "d3ef19a58ce3ac5f35905ece1cba12ecc11d160ee8e15a76213147cefa365fa8":
+                "modelSelection.korean-latest-label.previous.patch",
+        },
     },
     "dist/src/browser/actions/thinkingTime.js": {
-        "patch": "thinkingTime.direct-slider-account-maximum.patch",
+        "patch": "thinkingTime.plus-picker-effort-gate.patch",
         "pristine": "15371da2aa8c52811605ac7406e7e0f7a3286c94324bb69933c69f94fdf5e93f",
-        "patched": "cd3f7b5fab388e5cb0fe13ea3358c34a6aef1fdb032f4a4bd445f833f3390bf3",
+        "patched": "a18e652a2aa9127723c63a6b8ba2824714d35924ab1c4f33a2886d4c4c61638d",
+        "legacy_patched": [
+            "80c60a32a908959efc0451a6d5a72cfa6636b3560f3948ea766bd321fab59ca0",
+            "cd3f7b5fab388e5cb0fe13ea3358c34a6aef1fdb032f4a4bd445f833f3390bf3",
+            "beaf06f68d3ddc96130ad1bff85a6c1439487705e1b09c2337b81d416ad0f511",
+        ],
+        "legacy_patches": {
+            "80c60a32a908959efc0451a6d5a72cfa6636b3560f3948ea766bd321fab59ca0":
+                "thinkingTime.plus-0-2-slider.previous.patch",
+            "cd3f7b5fab388e5cb0fe13ea3358c34a6aef1fdb032f4a4bd445f833f3390bf3":
+                "thinkingTime.direct-slider-account-maximum.previous.patch",
+            "beaf06f68d3ddc96130ad1bff85a6c1439487705e1b09c2337b81d416ad0f511":
+                "thinkingTime.plus-picker-effort-gate.previous.patch",
+        },
+    },
+    "dist/src/browser/modelDisplay.js": {
+        "patch": "modelDisplay.plus-slider-evidence.patch",
+        "pristine": "ccefaea130394f71228c10e6815e6428b2b24a7b5b73d8307dd6fa4b310b8ae0",
+        "patched": "4f20143584d1b5dc598ee54986cffe332a21188a532cdedae6b6de8d690bf01a",
     },
 }
 

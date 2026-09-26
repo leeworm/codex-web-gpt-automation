@@ -319,6 +319,7 @@ def setup_plan(
             "DEVSPACE_TOOL_MODE": DEVSPACE_TOOL_MODE,
             "DEVSPACE_OAUTH_SCOPES": DEVSPACE_OAUTH_SCOPES,
             "DEVSPACE_SUBAGENTS": "false",
+            "DEVSPACE_TRUST_PROXY": "true",
             "DEVSPACE_LOG_REQUESTS": "false",
             "DEVSPACE_LOG_TOOL_CALLS": "false",
             "DEVSPACE_LOG_SHELL_COMMANDS": "false",
@@ -557,6 +558,10 @@ def devspace_service_environment(
     # to enable that separate execution surface, even when an inherited host
     # environment or a legacy config opted into subagents.
     environment["DEVSPACE_SUBAGENTS"] = "false"
+    # The managed service is published only through the local Tailscale Funnel
+    # proxy. DevSpace 1.0.8's rate limiter rejects the Funnel's
+    # X-Forwarded-For header unless Express is told to trust that proxy.
+    environment["DEVSPACE_TRUST_PROXY"] = "true"
     environment["DEVSPACE_LOG_REQUESTS"] = "false"
     environment["DEVSPACE_LOG_TOOL_CALLS"] = "false"
     environment["DEVSPACE_LOG_SHELL_COMMANDS"] = "false"

@@ -1,0 +1,10 @@
+--- a/dist/src/browser/actions/assistantResponse.js
++++ b/dist/src/browser/actions/assistantResponse.js
+@@ -1022,6 +1022,7 @@
+       expandCollapsibles(messageRoot);
+       const preferred =
+         (messageRoot.matches?.('.markdown') || messageRoot.matches?.('[data-message-content]') ? messageRoot : null) ||
++        messageRoot.querySelector('[data-markdown-text-style="assistant-message"]') ||
+         messageRoot.querySelector('.markdown') ||
+         messageRoot.querySelector('[data-message-content]') ||
+         messageRoot.querySelector('[data-testid*="message"]') ||

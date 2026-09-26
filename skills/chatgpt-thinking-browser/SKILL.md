@@ -1,22 +1,26 @@
 ---
 name: chatgpt-thinking-browser
-description: Run new regular ChatGPT direct, plan, review, edit, and orchestrator work through Oracle plus the manually registered DevSpace workspace app; use legacy agbrowse only to recover an exact persisted old run.
+description: Historical compatibility and exact-run recovery guidance for selector-era regular Oracle plus DevSpace runs. New ordinary work uses chatgpt-oracle-runtime.
 ---
 
-# Regular ChatGPT through Oracle + DevSpace
+# Historical regular Oracle + DevSpace compatibility
 
-Read `chatgpt-question-designer` first when shaping a new mission.
+Do not select this skill for new ordinary work. Use `chatgpt-oracle-runtime`
+under the shared Natural Oracle routing policy instead. This file remains only
+to preserve the semantics and recovery contract of persisted selector-era
+direct/plan/review/edit/orchestrator runs.
 
-For new work, create one absolute UTF-8 mission file inside the project and
-resolve the requested mode through:
+For an exact persisted compatibility run, preserve its recorded mission, model,
+effort, root, and mode. Do not convert it to the new ordinary route or submit a
+replacement prompt. Historical dispatch shape:
 
 ```powershell
 python "$env:USERPROFILE\.codex\bin\chatgpt_oracle_dispatch.py" --mode <direct|plan|review|edit|orchestrator> --project-root C:\project --mission-path C:\project\mission.md --manifest-output C:\project\.ai-bridge\oracle.json --reasoning-level "Very High" --dry-run
 ```
 
-Remove `--dry-run` only for an explicitly authorized live web run. The runtime
-sends the configured app mention (default `@codex`) plus the absolute mission path. It never attaches files,
-opens ChatGPT settings, inspects/selects/deletes an app, or falls back to
+The runtime sends the configured app mention (default `@codex`) plus the
+absolute mission path. It never attaches files, opens ChatGPT settings,
+inspects/selects/deletes an app, or falls back to
 agbrowse, Playwright, in-app Browser, or Chrome.
 
 `orchestrator` is a single web submission that carries the orchestrator
@@ -28,24 +32,16 @@ comprehensive mode, which is a multi-stage workflow owned by
 Comprehensive mode runs `orchestrator`-equivalent work as its implementation
 stage, so it contains this mode rather than competing with it.
 
-Choose `orchestrator` when the goal and approach are already settled and one
-authorized execution pass should finish the work at the lowest cost. Choose
-comprehensive mode when the plan itself needs an independent review stage,
-when Pro or Web Multi must participate, or when completion must be proven by a
-deterministic local gate.
+The `orchestrator` and comprehensive distinctions below describe only those
+persisted historical workflows. They are not automatic route choices for new
+requests.
 
 CodexPro is frozen for new work. Never mention it in a new mission, probe its
 endpoint, repair/register/delete its app, or use it as a DevSpace fallback.
 
-Oracle explicitly selects `GPT-5.6 Sol` and `extra-high`, verifies the visible
-`Extra High` tier before prompt send, and records both in Oracle evidence. The exact 0.20.0
-compatibility layer is hash-gated and fails closed on an unknown version or
-third-party file. Never invent xhigh or silently downgrade.
-
-On the current Power-slider UI, Oracle verifies `Power 4 of 5` for regular
-`extra-high`; attachment-only Pro uses the same verified `GPT-5.6 Sol` model
-with `Power 5 of 5` (the visible `Pro` choice). `heavy` is only Oracle's
-internal compatibility token for that latter choice, never a claimed UI label.
+For recovery, keep the model and effort recorded by the persisted run. Never
+upgrade, downgrade, or reinterpret that historical selection from the current
+Plus account defaults.
 
 Every new run copies the manually signed-in Oracle profile into a throwaway
 per-run profile and asks Oracle to hide its owned window. This isolates

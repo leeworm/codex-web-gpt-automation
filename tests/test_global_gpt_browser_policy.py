@@ -16,30 +16,34 @@ SETUP = ROOT / "skills" / "chatgpt-workspace-setup" / "SKILL.md"
 GUARD = ROOT / "skills" / "mcp-update-guard" / "SKILL.md"
 AGENTS = ROOT / "AGENTS.md"
 POLICY = ROOT / "docs" / "AUTOMATION_POLICY.md"
+FIRST_KO = ROOT / "docs" / "FIRST_INSTALL.md"
+FIRST_EN = ROOT / "docs" / "FIRST_INSTALL.en.md"
+INSTALL_AGENT = ROOT / "docs" / "INSTALL_AGENT.md"
 
 
 def text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_new_regular_modes_route_only_to_oracle_devspace() -> None:
-    value = text(THINKING)
-    assert "chatgpt_oracle_dispatch.py" in value
+def test_new_regular_work_routes_only_to_oracle_devspace() -> None:
+    value = text(ORACLE)
+    assert "chatgpt_oracle_run.py" in value
     assert "default `@codex`" in value
-    assert "never attaches files" in value
-    assert "create a new agbrowse run" in value
-    assert "app picker" not in value.casefold()
+    assert "GPT-5.6 Sol" in value
+    assert "High (extended)" in value
+    assert "never automatically replay a prompt" in value
 
 
-def test_current_policy_is_one_mission_latest_effort_with_default_pro() -> None:
+def test_current_policy_is_one_mission_plus_sol_high_with_natural_routing() -> None:
     values = [text(path) for path in (POLICY, AGENTS, ORACLE, DESIGNER, SETUP, GUARD)]
     combined = " ".join(" ".join(value.split()) for value in values)
     assert "one mission-based flow" in combined
     assert "planning, research, review, and editing are prompt content, not modes" in combined
-    assert "Select Latest explicitly before the requested effort" in combined
-    assert "default is Pro, observed as **6 Pro**" in combined
+    assert "GPT-5.6 Sol" in combined
+    assert "High" in combined
+    assert "Natural Oracle routing" in combined
+    assert "Do not ask for per-run Oracle opt-in" in combined
     assert "Oracle 0.20.0" in combined
-    assert "`latest/select`" in combined
     assert "temporary chats" in combined
     assert "Save the complete answer durably before closing the exact owned tab" in combined
     assert "never automatically replay a prompt" in combined
@@ -48,6 +52,18 @@ def test_current_policy_is_one_mission_latest_effort_with_default_pro() -> None:
     assert "pro-attachment" not in combined
     assert "must not create, edit, or remove files or run commands" not in combined
     assert "comprehensive mode" not in combined
+
+
+def test_active_setup_guides_use_plus_sol_high_not_old_default_pro() -> None:
+    values = [text(path) for path in (FIRST_KO, FIRST_EN, INSTALL_AGENT, SETUP)]
+    combined = "\n".join(values)
+
+    assert all("GPT-5.6 Sol" in value for value in values)
+    assert all("High" in value for value in values)
+    assert "default Pro / 6 Pro" not in combined
+    assert "**최신 → Pro (6 Pro)**" not in combined
+    assert "model=latest" not in combined
+    assert "thinking_time=pro" not in combined
 
 
 def test_compatibility_workflows_keep_schema_and_recovered_authority() -> None:
@@ -64,7 +80,7 @@ def test_compatibility_workflows_keep_schema_and_recovered_authority() -> None:
     assert "only explicit user opt-in selects new qualified Pro" not in combined
     assert "regular `GPT-5.6` `extra-high` DevSpace stage owns" not in combined
     assert "Pro is quota-limited" not in text(PRO)
-    assert "Invoke this skill only after an explicit user request" not in text(PRO)
+    assert "Invoke this skill only after an explicit user request" in text(PRO)
 
 
 def test_qualified_pro_has_exact_root_readonly_authority() -> None:
@@ -223,7 +239,8 @@ def test_readme_declares_manual_one_time_registration_not_ui_automation() -> Non
 def test_english_readme_declares_current_single_mission_policy() -> None:
     value = text(ROOT / "README.en.md")
     assert "One mission-based flow with explicit model and effort selection" in value
-    assert "**Latest → Pro (6 Pro)**" in value
+    assert "**GPT-5.6 Sol → High**" in value
+    assert "natural routing" in value.casefold()
     assert "Use temporary chats" in value
     assert "save the result durably, then close only the owned tab" in value
     assert "do not automatically\nresubmit, archive, or restore conversations" in value
@@ -247,7 +264,7 @@ def test_agent_metadata_exposes_oracle_active_routes() -> None:
     assert "read-only DevSpace" in pro
     assert "allow_implicit_invocation: false" in pro
     assert "Run one temporary-chat mission with explicit model and effort" in runtime
-    assert "allow_implicit_invocation: false" in runtime
+    assert "allow_implicit_invocation: true" in runtime
 
 
 def test_question_designer_leaves_recovery_and_cleanup_to_the_owner() -> None:

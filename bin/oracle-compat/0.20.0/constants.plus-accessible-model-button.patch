@@ -1,0 +1,31 @@
+--- a/dist/src/browser/constants.js
++++ b/dist/src/browser/constants.js
+@@ -28,12 +28,16 @@
+     '[data-turn="assistant"] .markdown',
+     '[data-message-author-role="assistant"]',
+     '[data-turn="assistant"]',
++    '[data-chatgpt-search-unit-key$=":assistant"] .markdown',
++    '[data-content-search-unit-key$=":assistant"] .markdown',
++    '[data-chatgpt-search-unit-key$=":assistant"]',
++    '[data-content-search-unit-key$=":assistant"]',
+ ];
+ export const CONVERSATION_TURN_SELECTOR = 'article[data-testid^="conversation-turn"], div[data-testid^="conversation-turn"], section[data-testid^="conversation-turn"], ' +
+     "article[data-message-author-role], div[data-message-author-role], section[data-message-author-role], " +
+-    "article[data-turn], div[data-turn], section[data-turn]";
+-export const CONVERSATION_TURN_CONTAINER_SELECTOR = '[data-testid^="conversation-turn"]';
+-export const ASSISTANT_ROLE_SELECTOR = '[data-message-author-role="assistant"], [data-turn="assistant"]';
++    "article[data-turn], div[data-turn], section[data-turn], [data-content-search-turn-key]";
++export const CONVERSATION_TURN_CONTAINER_SELECTOR = '[data-testid^="conversation-turn"], [data-content-search-turn-key]';
++export const ASSISTANT_ROLE_SELECTOR = '[data-message-author-role="assistant"], [data-turn="assistant"], [data-chatgpt-search-unit-key$=":assistant"], [data-content-search-unit-key$=":assistant"]';
+ export const CLOUDFLARE_SCRIPT_SELECTOR = 'script[src*="/challenge-platform/"]';
+ export const CLOUDFLARE_TITLE = "just a moment";
+ export const PROMPT_PRIMARY_SELECTOR = "#prompt-textarea";
+@@ -81,7 +85,7 @@
+     'button[aria-label*="Send"]',
+ ];
+ export const SEND_BUTTON_SELECTOR = SEND_BUTTON_SELECTORS[0];
+-export const MODEL_BUTTON_SELECTOR = '[data-testid="model-switcher-dropdown-button"], button.__composer-pill[aria-haspopup="menu"]';
++export const MODEL_BUTTON_SELECTOR = '[data-testid="model-switcher-dropdown-button"], button.__composer-pill[aria-haspopup="menu"], button[aria-label="Select ChatGPT model"][aria-haspopup="menu"]';
+ export const COMPOSER_MODEL_SIGNAL_SELECTOR = '[data-testid="composer-footer-actions"]';
+ export const COPY_BUTTON_SELECTOR = 'button[data-testid="copy-turn-action-button"]';
+ // Action buttons that only appear once a turn has finished rendering.

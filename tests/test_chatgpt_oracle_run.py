@@ -5526,6 +5526,54 @@ def test_live_recovery_cli_defaults_to_eighty_minute_status_audit() -> None:
     assert args.settle_interval_seconds == 15
 
 
+def test_execute_cli_requires_explicit_flags_for_one_uncertain_delivery_retry() -> None:
+    runner = load_runner()
+    args = runner.build_parser().parse_args([
+        "execute",
+        "--project-root", r"C:\GPT",
+        "--mission-path", r"C:\GPT\Codex\mission.md",
+        "--run-id", "authorized-retry-run-01",
+        "--model", "gpt-5.6-sol",
+        "--effort", "extended",
+        "--app-name", "codex",
+        "--retry-from-run", r"C:\Users\kalro\.codex\state\exact-old-run",
+        "--confirm-uncertain-retry",
+    ])
+
+    assert args.retry_from_run == Path(r"C:\Users\kalro\.codex\state\exact-old-run")
+    assert args.confirm_uncertain_retry is True
+
+
+def test_execute_main_forwards_retry_authorization_to_the_executor(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    runner = load_runner()
+    observed: dict[str, object] = {}
+    monkeypatch.setattr(runner.EXECUTOR, "make_config", lambda **_kwargs: object())
+
+    def execute_config(_config, **kwargs):
+        observed.update(kwargs)
+        return {"ok": True, "status": "dry-run"}
+
+    monkeypatch.setattr(runner.EXECUTOR, "execute_config", execute_config)
+    retry_path = Path(r"C:\Users\kalro\.codex\state\exact-old-run")
+    exit_code = runner.main([
+        "execute",
+        "--project-root", r"C:\GPT",
+        "--mission-path", r"C:\GPT\Codex\mission.md",
+        "--retry-from-run", str(retry_path),
+        "--confirm-uncertain-retry",
+        "--dry-run",
+    ])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["status"] == "dry-run"
+    assert observed["retry_from_run"] == retry_path
+    assert observed["confirm_uncertain_retry"] is True
+
+
 @pytest.mark.parametrize(
     "override",
     [

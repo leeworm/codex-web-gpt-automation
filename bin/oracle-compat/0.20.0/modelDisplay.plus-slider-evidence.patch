@@ -1,0 +1,15 @@
+diff --git a/dist/src/browser/modelDisplay.js b/dist/src/browser/modelDisplay.js
+--- a/dist/src/browser/modelDisplay.js
++++ b/dist/src/browser/modelDisplay.js
+@@ -68,9 +68,10 @@
+ /** Renders the observed effort selection independently of the model picker. */
+ export function formatBrowserThinkingSelectionEvidence(evidence) {
+     const resolvedLabel = cleanLabel(evidence.resolvedLabel) ?? "(none)";
++    const maximum = Number.isInteger(evidence.maximum) ? String(evidence.maximum) : "(unknown)";
+     const verified = evidence.verified ? "yes" : "no";
+     const failClosed = evidence.strictFailClosed ? "yes" : "no";
+     const targetKind = evidence.targetModelKind ?? "(none)";
+     const observedKind = evidence.observedModelKind ?? "(none)";
+-    return `requestedLevel=${evidence.requestedLevel}; status=${evidence.status}; resolvedLabel=${resolvedLabel}; verified=${verified}; failClosed=${failClosed}; targetModelKind=${targetKind}; observedModelKind=${observedKind}; source=${evidence.source}; capturedAt=${evidence.capturedAt}`;
++    return `requestedLevel=${evidence.requestedLevel}; status=${evidence.status}; resolvedLabel=${resolvedLabel}; maximum=${maximum}; verified=${verified}; failClosed=${failClosed}; targetModelKind=${targetKind}; observedModelKind=${observedKind}; source=${evidence.source}; capturedAt=${evidence.capturedAt}`;
+ }

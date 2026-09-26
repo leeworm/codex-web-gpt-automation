@@ -1,0 +1,90 @@
+diff --git a/dist/src/browser/actions/modelSelection.js b/dist/src/browser/actions/modelSelection.js
+--- a/dist/src/browser/actions/modelSelection.js
++++ b/dist/src/browser/actions/modelSelection.js
+@@ -85,7 +85,8 @@
+         // The advanced radio is localized, but only the documented exact labels are
+         // evidence of GPT-6 Astra. Do not let a generic picker result verify Latest.
+         if (resolvedLabel.normalize("NFC").trim() === "Latest" ||
+-            resolvedLabel.normalize("NFC").trim() === "最新") {
++            resolvedLabel.normalize("NFC").trim() === "最新" ||
++            resolvedLabel.normalize("NFC").trim() === "최신") {
+             return;
+         }
+         throw new Error(`Model picker selected "${resolvedLabel}" while "${desiredModel}" requires GPT-6 Astra (Latest).`);
+@@ -187,7 +188,7 @@
+     // Sol or an arbitrary localized menu row can never satisfy a Latest request.
+     const isLatestModelLabel = (value) => {
+       const label = String(value ?? '').normalize('NFC').trim();
+-      return label === 'Latest' || label === '最新';
++      return label === 'Latest' || label === '最新' || label === '최신';
+     };
+     const normalizedTokens = Array.from(new Set([normalizedTarget, ...LABEL_TOKENS]))
+       .map((token) => normalizeText(token))
+@@ -438,7 +439,7 @@
+     // model versions live behind Advanced -> Model, next to an identically-shaped
+     // Effort submenu. Identify the Model opener positively so a Pro effort label can
+     // never be mistaken for a model target.
+-    const ADVANCED_VIEW_SELECTOR = '[data-testid="composer-model-picker-slider-advanced-view"]';
++    const ADVANCED_VIEW_SELECTOR = '[data-testid="composer-model-picker-slider-advanced-view"], [data-model-picker-view="advanced"]';
+     const INTELLIGENCE_PICKER_SELECTOR = '[data-testid="composer-intelligence-picker-content"]';
+     const SUBMENU_OPENER_SELECTOR = '[role="menuitem"][aria-haspopup="menu"]';
+     const ADVANCED_WORDS = ['advanced', 'erweitert', '高级', '고급', 'avanzado', 'avancado', 'avance'];
+@@ -500,7 +501,21 @@
+     const advancedModelSignalMatchesTarget = (menu = null) => {
+       const parentMenu = menu || findUnifiedPickerMenu();
+       const opener = findModelSubmenuOpener(parentMenu);
+-      if (!opener) return false;
++      if (!opener) {
++        const checkedAdvancedRadio = findCheckedAdvancedModelRadio(parentMenu);
++        if (!checkedAdvancedRadio) return false;
++        const rawCheckedLabel = checkedAdvancedRadio.textContent ?? '';
++        if (targetIsLatest) return isLatestModelLabel(rawCheckedLabel);
++        const checkedLabel = normalizeText(rawCheckedLabel);
++        const checkedVersion = versionFromLabel(checkedLabel);
++        if (desiredVersion && checkedVersion !== desiredVersion) return false;
++        if (desiredModelVariant && !checkedLabel.split(' ').includes(desiredModelVariant)) return false;
++        if (wantsPro) return labelHasProWord(checkedLabel) && !labelHasLegacyProVersion(checkedLabel);
++        if (wantsInstant) return checkedLabel.includes('instant');
++        if (wantsThinking) return Boolean(desiredVersion) && !labelHasProWord(checkedLabel);
++        if (desiredVersion) return true;
++        return normalizedTokens.some((token) => token && checkedLabel === token);
++      }
+       const label = normalizeText(pickerNodeLabel(opener));
+       const version = versionFromLabel(label);
+       if (desiredVersion && version !== desiredVersion) return false;
+@@ -523,15 +538,17 @@
+     };
+     const findCheckedAdvancedModelRadio = (menu = null) => {
+       const scope = menu || findUnifiedPickerMenu() || document;
+-      return (
+-        scope?.querySelector?.(
+-          '[data-testid="composer-model-picker-slider-advanced-view"] [role="menuitemradio"][aria-checked="true"]',
+-        ) ?? null
+-      );
++      const advancedView = scope?.matches?.(ADVANCED_VIEW_SELECTOR)
++        ? scope
++        : scope?.querySelector?.(ADVANCED_VIEW_SELECTOR);
++      return advancedView?.querySelector?.('[role="menuitemradio"][aria-checked="true"]') ?? null;
+     };
+     const getAdvancedModelLabel = () => {
+-      const opener = findModelSubmenuOpener(findUnifiedPickerMenu());
+-      if (!opener) return '';
++      const parentMenu = findUnifiedPickerMenu();
++      const opener = findModelSubmenuOpener(parentMenu);
++      if (!opener) {
++        return (findCheckedAdvancedModelRadio(parentMenu)?.textContent ?? '').trim();
++      }
+       const raw = (opener.textContent ?? '').trim();
+       const normalized = normalizeText(pickerNodeLabel(opener));
+       const version = versionFromLabel(normalized);
+@@ -1442,8 +1459,9 @@
+         testIdTokens.add("gpt56");
+     }
+     if (base === "latest") {
+-        // ChatGPT's Japanese advanced-model radio is named exactly "最新".
++        // ChatGPT localizes the advanced-model radio with exact labels.
+         push("最新", labelTokens);
++        push("최신", labelTokens);
+     }
+     // Numeric variations (5.5 <-> 55 <-> gpt-5-5)
+     if (base.includes("5.5") || base.includes("5-5") || base.includes("55")) {

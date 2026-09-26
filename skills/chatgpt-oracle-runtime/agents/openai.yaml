@@ -3,4 +3,4 @@ interface:
   short_description: "Run one temporary-chat mission with explicit model and effort"
   default_prompt: "$chatgpt-oracle-runtime C:\\project\\mission.md"
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true

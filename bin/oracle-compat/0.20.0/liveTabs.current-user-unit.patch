@@ -1,0 +1,26 @@
+--- a/dist/src/browser/liveTabs.js
++++ b/dist/src/browser/liveTabs.js
+@@ -68,6 +68,7 @@
+       const SEND_SELECTORS = ${sendSelectorsLiteral};
+       const ANSWER_SELECTORS = ${answerSelectorsLiteral};
+       const ASSISTANT_ROLE_SELECTOR = ${assistantRoleLiteral};
++      const USER_ROLE_SELECTOR = '[data-message-author-role="user"], [data-turn="user"], [data-chatgpt-search-unit-key$=":user"], [data-content-search-unit-key$=":user"]';
+       const MODEL_BUTTON_SELECTOR = ${modelButtonSelectorLiteral};
+       const STOP_BUTTON_SELECTOR = ${stopSelectorLiteral};
+       const LOGIN_CTA = ${LOGIN_CTA_PATTERN.toString()};
+@@ -103,13 +104,13 @@
+         return Boolean(turn.querySelector(ASSISTANT_ROLE_SELECTOR));
+       });
+       const fallbackUserTurns = Array.from(
+-        document.querySelectorAll('[data-message-author-role="user"], [data-turn="user"]'),
++        document.querySelectorAll(USER_ROLE_SELECTOR),
+       );
+       const userTurns = turns.filter((turn) => {
+         const role = normalize(turn.getAttribute('data-message-author-role') || turn.getAttribute('data-turn')).toLowerCase();
+         if (role === 'user') return true;
+         return Boolean(
+-          turn.querySelector('[data-message-author-role="user"], [data-turn="user"]'),
++          turn.querySelector(USER_ROLE_SELECTOR),
+         );
+       });
+       const answerNode = ANSWER_SELECTORS

@@ -500,7 +500,7 @@ def test_temp_codex_home_install_and_rollback_is_exact_inverse() -> None:
         assert installed_runtime_metadata.read_bytes() == (
             ROOT / 'skills' / 'chatgpt-oracle-runtime' / 'agents' / 'openai.yaml'
         ).read_bytes()
-        assert b'allow_implicit_invocation: false' in installed_runtime_metadata.read_bytes()
+        assert b'allow_implicit_invocation: true' in installed_runtime_metadata.read_bytes()
 
         rolled_back = run_powershell(
             '-File', str(ROOT / 'rollback.ps1'),

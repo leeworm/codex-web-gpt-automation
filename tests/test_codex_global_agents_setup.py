@@ -146,3 +146,27 @@ def test_role_contracts_are_narrow_and_parseable() -> None:
     assert "exact files explicitly named" in implementer["developer_instructions"]
     assert verifier["model_reasoning_effort"] == "high"
     assert verifier["sandbox_mode"] == "read-only"
+
+
+def test_global_policy_enables_natural_oracle_routing() -> None:
+    _, policy = module._load_templates(ROOT)
+    flat = " ".join(policy.split())
+
+    assert "Natural Oracle routing" in policy
+    assert "GPT-5.6 Sol" in policy
+    assert "High" in policy
+    assert "Do not ask for per-run Oracle opt-in" in policy
+    assert "recover the exact existing run" in flat
+    assert "Pro, Extra High, Web Multi" in policy
+
+
+def test_oracle_runtime_is_implicit_and_uses_plus_defaults() -> None:
+    skill_root = ROOT / "skills" / "chatgpt-oracle-runtime"
+    metadata = (skill_root / "agents" / "openai.yaml").read_text(encoding="utf-8")
+    instructions = (skill_root / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "allow_implicit_invocation: true" in metadata
+    assert "GPT-5.6 Sol" in instructions
+    assert "High (extended)" in instructions
+    assert "--model gpt-5.6-sol --effort extended" in instructions
+    assert "--model latest --effort pro" not in instructions

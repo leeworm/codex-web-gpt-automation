@@ -43,10 +43,11 @@ Tailscale Funnel이 기본 관리 경로입니다. 다른 공급자는 고정 HT
 endpoint 연결 상태와 등록 앱을 통한 실제 프로젝트 읽기를 확인합니다.
 비인증 HTTP 401은 경로가 응답한다는 증거이지 파일 읽기 성공 증거는 아닙니다.
 
-일반 임시채팅 실행에서 모델 메뉴의 **최신 → Pro (6 Pro)** 를 명시적으로
-선택합니다. 제출 전에 임시채팅 맞춤화를 자동으로 켜고 확인합니다. Oracle 0.20.0에는
-`model=latest`, `model_strategy=select`, `thinking_time=pro`를 직접 전달하며,
-브라우저는 숫자 GPT-5.6이 아닌 `Latest`를 클릭하고 `6 Pro`를 확인해야 합니다.
+이 Windows Plus 프로필의 일반 임시채팅 실행에서는
+**GPT-5.6 Sol → High**를 명시적으로 선택합니다. 제출 전에 임시채팅 맞춤화를
+자동으로 켜고 확인합니다. Oracle 0.20.0에는 `model=gpt-5.6-sol`,
+`model_strategy=select`, `thinking_time=extended`를 직접 전달하며, 브라우저는
+선택된 GPT-5.6 Sol과 High 상태를 확인해야 합니다.
 
 답변 전체를 로컬에 저장한 뒤 소유한 탭만 닫습니다. 타임아웃에는 같은 실행을
 유지하고 자동 재전송하지 않습니다. 실제 읽기는 강제 도구 호출 순서,

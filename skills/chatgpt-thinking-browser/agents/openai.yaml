@@ -1,6 +1,6 @@
 interface:
   display_name: "ChatGPT Thinking Browser"
-  short_description: "Run regular GPT through Oracle and DevSpace"
+  short_description: "Recover legacy Oracle and DevSpace regular runs"
   default_prompt: "$chatgpt-thinking-browser C:\\project\\mission.md"
 policy:
   allow_implicit_invocation: false

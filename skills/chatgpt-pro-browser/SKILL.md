@@ -19,10 +19,11 @@ instead.
 Oracle is the only backend for a new Pro run. There is no new agbrowse,
 CodexPro, in-app Browser, custom CDP/Playwright, or `@chrome` fallback.
 
-## Standing default route
+## Explicit Pro route
 
-All non-implementation cognitive requirements use this route under standing
-approval; do not request per-run Pro opt-in. Oracle uses the manually registered
+Invoke this skill only after an explicit user request for Pro or for this exact
+read-only Pro review route. Natural Oracle routing never selects it merely
+because a task is large or long-running. Oracle uses the manually registered
 `@codex` DevSpace app and native `model: latest`, `model_strategy: select`, and
 `thinking_time: pro`. Browser proof requires
 exact `Latest` checked, full `5/5` qualification, the composer's

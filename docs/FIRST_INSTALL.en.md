@@ -42,11 +42,11 @@ Verify endpoint reachability and one actual project read through the registered
 app. HTTP 401 without authentication can establish endpoint reachability, but
 cannot establish successful authenticated file access.
 
-Use the normal temporary-chat flow. Explicitly select Latest, then the requested
-effort (default Pro / 6 Pro). Automatically enable temporary-chat personalization before submission.
-Oracle 0.20.0 receives `model=latest`, `model_strategy=select`, and
-`thinking_time=pro` directly; it must click Latest, not the numeric GPT-5.6 row,
-and verify the `6 Pro` result.
+Use the normal temporary-chat flow. On this Windows Plus profile, explicitly
+select **GPT-5.6 Sol → High**. Automatically enable temporary-chat personalization
+before submission. Oracle 0.20.0 receives `model=gpt-5.6-sol`,
+`model_strategy=select`, and `thinking_time=extended` directly and must verify
+the selected GPT-5.6 Sol model and visible High effort before submission.
 
 Save the complete answer before closing the owned tab. A timeout retains that
 same run; never automatically resend. Read access does not require a prescribed

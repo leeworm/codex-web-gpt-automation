@@ -1,0 +1,220 @@
+diff --git a/dist/src/browser/actions/thinkingTime.js b/dist/src/browser/actions/thinkingTime.js
+--- a/dist/src/browser/actions/thinkingTime.js
++++ b/dist/src/browser/actions/thinkingTime.js
+@@ -26,9 +26,15 @@
+         this.confirmedTarget = confirmedTarget;
+     }
+ }
+-function confirmedThinkingTarget(level, capitalizedLevel, targetModelKind, observedModelKind) {
++function isGpt56SolModel(model) {
++    return (model ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "") === "gpt56sol";
++}
++function confirmedThinkingTarget(level, capitalizedLevel, targetModelKind, observedModelKind, desiredModel) {
+     const strictModelKind = targetModelKind ?? observedModelKind;
+-    return level === "pro" ? "Pro" : strictModelKind === "pro" ? "Pro Extended" : capitalizedLevel;
++    if (level === "pro") return "Pro";
++    if (strictModelKind === "pro") return "Pro Extended";
++    if (level === "extended" && isGpt56SolModel(desiredModel)) return "High";
++    return capitalizedLevel;
+ }
+ const BROWSER_THINKING_LOG_PREFIX = "[browser] Thinking time:";
+ function formatBrowserThinkingLog(message) {
+@@ -65,12 +71,18 @@
+     // own, independently of the legacy Pro-model + "extended" combination.
+     const strictProEffort = level === "pro" ||
+         ((targetModelKind === "pro" || observedModelKind === "pro") && level === "extended");
++    const strictPlusHighEffort = level === "extended" && isGpt56SolModel(desiredModel);
++    const strictRequestedEffort = strictProEffort || strictPlusHighEffort;
++    const requiredConfirmedTarget = confirmedThinkingTarget(
++        level, capitalizedLevel, targetModelKind, observedModelKind, desiredModel,
++    );
+     const evidence = (status, resolvedLabel) => ({
+         requestedLevel: level,
+         status,
+         resolvedLabel,
++        maximum: result?.maximum ?? null,
+         verified: status === "already-selected" || status === "switched",
+-        strictFailClosed: strictProEffort,
++        strictFailClosed: strictRequestedEffort,
+         targetModelKind: targetModelKind ?? null,
+         observedModelKind: observedModelKind ?? null,
+         source: "chatgpt-thinking-picker",
+@@ -86,8 +98,8 @@
+         case "option-disabled": {
+             await logDomFailure(Runtime, logger, "thinking-option-disabled");
+             logPickerDiagnostic(result, logger);
+-            if (strictProEffort) {
+-                throw new ThinkingTierUnavailableError(level, capitalizedLevel, result.label ?? null, result.notice ?? null, confirmedThinkingTarget(level, capitalizedLevel, targetModelKind, observedModelKind));
++            if (strictRequestedEffort) {
++                throw new ThinkingTierUnavailableError(level, capitalizedLevel, result.label ?? null, result.notice ?? null, requiredConfirmedTarget);
+             }
+             // A non-strict caller goes on to submit, so this log must not borrow the
+             // strict error's "refusing to submit" wording: the request really is sent,
+@@ -108,9 +120,8 @@
+                     ? ` for ${targetModelKind}`
+                     : "";
+             const message = `Thinking time: ${result.status.replaceAll("-", " ")}${kindHint} (requested ${capitalizedLevel})`;
+-            if (strictProEffort) {
+-                const target = level === "pro" ? "Pro" : "Pro Extended";
+-                throw new Error(`${message}; refusing to submit without confirmed ${target}.`);
++            if (strictRequestedEffort) {
++                throw new Error(`${message}; refusing to submit without confirmed ${requiredConfirmedTarget}.`);
+             }
+             // "selection-unverified" is the one status here that already dispatched a
+             // click, so the effort may or may not have moved. Every other status left
+@@ -124,9 +135,8 @@
+         default: {
+             await logDomFailure(Runtime, logger, "thinking-time-unknown");
+             logPickerDiagnostic(result, logger);
+-            if (strictProEffort) {
+-                const target = level === "pro" ? "Pro" : "Pro Extended";
+-                throw new Error(`Thinking time: unknown outcome selecting ${capitalizedLevel}; refusing to submit without confirmed ${target}.`);
++            if (strictRequestedEffort) {
++                throw new Error(`Thinking time: unknown outcome selecting ${capitalizedLevel}; refusing to submit without confirmed ${requiredConfirmedTarget}.`);
+             }
+             logger(formatBrowserThinkingLog(`unknown outcome selecting ${capitalizedLevel}; continuing with ChatGPT default.`));
+             return evidence("unverified", null);
+@@ -990,15 +1000,43 @@
+     // owner announces the actual tier via aria-describedby; neither the pill nor
+     // the slider's maximum position alone proves that Pro was selected.
+     const selectDirectEffortSlider = async (menu) => {
+-      const view = menu.querySelector?.('[data-model-selection-view="true"]');
+-      const simple = view?.querySelector?.('[data-testid="composer-model-picker-slider-simple-view"]');
+-      if (!simple || simple.getAttribute('data-active') !== 'true' || !isVisible(simple)) return null;
++      let returnedToPlusPowerView = false;
+       const resolve = () => {
+-        const currentView = menu.querySelector?.('[data-model-selection-view="true"]');
+-        const currentSimple = currentView?.querySelector?.('[data-testid="composer-model-picker-slider-simple-view"]');
+-        if (currentSimple?.getAttribute('data-active') !== 'true') return null;
+-        const slider = currentSimple.querySelector('[data-model-reasoning-effort-slider]');
+-        const control = slider?.closest?.('[role="menuitem"]');
++        const view = menu.querySelector?.('[data-model-selection-view="true"]');
++        const simple = view?.querySelector?.('[data-testid="composer-model-picker-slider-simple-view"]');
++        let control = null;
++        let slider = null;
++        if (simple?.getAttribute('data-active') === 'true' && isVisible(simple)) {
++          slider = simple.querySelector('[data-model-reasoning-effort-slider]');
++          control = slider?.closest?.('[role="menuitem"]');
++        } else {
++          const plusControls = Array.from(
++            menu.querySelectorAll('[role="menuitem"][data-reasoning-slider="true"]'),
++          ).filter((item) => {
++            const activeView = item.closest('[data-active]');
++            return activeView?.getAttribute('data-active') === 'true' &&
++              !item.closest('[aria-hidden="true"], [inert]');
++          });
++          if (plusControls.length > 1) return null;
++          if (plusControls.length === 1) {
++            control = plusControls[0];
++            slider = control;
++          } else if (!returnedToPlusPowerView) {
++            // In the current picker, opening the model list hides the Power
++            // control. Re-selecting the already-checked radio returns to the
++            // simple view without changing the model.
++            const modelView = menu.querySelector('[data-model-picker-view="advanced"]');
++            const checkedRadio = modelView?.querySelector('[role="menuitemradio"][aria-checked="true"]');
++            const activeView = checkedRadio?.closest('[data-active]');
++            if (
++              activeView?.getAttribute('data-active') === 'true' &&
++              !checkedRadio.closest('[aria-hidden="true"], [inert]')
++            ) {
++              returnedToPlusPowerView = true;
++              dispatchClickSequence(checkedRadio);
++            }
++          }
++        }
+         const thumb = slider?.querySelector?.('[role="slider"]');
+         if (!control || !thumb || !isVisible(control)) return null;
+         const levels = ['light', 'standard', 'extended', 'extra-high', 'pro'];
+@@ -1030,11 +1068,16 @@
+           .filter(Boolean);
+         if (selections.length !== 1) return null;
+         const { label, index, level } = selections[0];
+-        // This adapter owns the observed five-tier layout only. A different range
+-        // or contradictory announcement must not turn a numeric guess into proof.
+-        if (thumb.getAttribute('aria-valuemin') !== '0' || thumb.getAttribute('aria-valuemax') !== '4' ||
+-            thumb.getAttribute('aria-valuenow') !== String(index)) return null;
+-        return { control, label, index, level };
++        const maximumAttribute = thumb.getAttribute('aria-valuemax');
++        const maximum = maximumAttribute === '2' || maximumAttribute === '3' || maximumAttribute === '4'
++          ? Number(maximumAttribute)
++          : null;
++        // Plus currently exposes three positions (0..2); other known accounts may
++        // expose four or five. The spoken tier label and numeric range must agree.
++        // Never infer Pro from the highest numeric position.
++        if (thumb.getAttribute('aria-valuemin') !== '0' || maximum === null ||
++            thumb.getAttribute('aria-valuenow') !== String(index) || index > maximum) return null;
++        return { control, label, index, level, maximum };
+       };
+       let current = resolve();
+       const finish = (result) => { closeOpenMenus(); return result; };
+@@ -1050,14 +1093,38 @@
+       const targetIndex = ['light', 'standard', 'extended', 'extra-high', 'pro'].indexOf(target);
+       if (targetIndex < 0) {
+         if (TARGET_IS_GPT56_MODEL && TARGET_LEVEL === 'heavy' && current.level === 'pro') {
+-          return finish({ status: 'already-selected', label: current.label });
++          return finish({
++            status: 'already-selected',
++            label: current.label,
++            maximum: current.maximum,
++            resolvedState: { label: current.label, index: current.index, level: current.level, maximum: current.maximum },
++          });
+         }
+         return finish(failure('option-not-found'));
+       }
+-      if (current.level === target) return finish({ status: 'already-selected', label: current.label });
++      if (targetIndex > current.maximum) {
++        const targetLabel = target === 'pro' ? 'Pro' : target;
++        return finish(failure('option-disabled', {
++          label: targetLabel,
++          notice: \`\${targetLabel} is unavailable on this account: the requested tier is not offered by this slider (maximum index \${current.maximum}).\`,
++          maximum: current.maximum,
++          resolvedState: { label: current.label, index: current.index, level: current.level, maximum: current.maximum },
++        }));
++      }
++      if (current.level === target) return finish({
++        status: 'already-selected',
++        label: current.label,
++        maximum: current.maximum,
++        resolvedState: { label: current.label, index: current.index, level: current.level, maximum: current.maximum },
++      });
+       const deadline = performance.now() + MAX_WAIT_MS;
+       for (let attempt = 0; attempt < 4 && performance.now() < deadline; attempt += 1) {
+-        if (isOptionDisabled(current.control)) return finish(failure('option-disabled', { label: current.label }));
++        if (isOptionDisabled(current.control)) return finish(failure('option-disabled', {
++          label: current.label,
++          notice: \`\${current.label} is unavailable on this account.\`,
++          maximum: current.maximum,
++          resolvedState: { label: current.label, index: current.index, level: current.level, maximum: current.maximum },
++        }));
+         const previousIndex = current.index;
+         const key = targetIndex > previousIndex ? 'ArrowRight' : 'ArrowLeft';
+         current.control.focus?.();
+@@ -1069,7 +1136,12 @@
+           if (next && next.index !== previousIndex) { current = next; break; }
+         }
+         if (!current) return finish(failure('selection-unverified'));
+-        if (current.level === target) return finish({ status: 'switched', label: current.label });
++        if (current.level === target) return finish({
++          status: 'switched',
++          label: current.label,
++          maximum: current.maximum,
++          resolvedState: { label: current.label, index: current.index, level: current.level, maximum: current.maximum },
++        });
+       }
+       return finish(failure('selection-unverified'));
+     };
+@@ -1083,6 +1155,13 @@
+       '.__composer-pill-composite button.__composer-pill',
+     ];
+     const findComposerEffortPill = () => {
++      if (TARGET_IS_GPT56_MODEL) {
++        const currentModelButtons = Array.from(document.querySelectorAll(
++          'button[aria-label="Select ChatGPT model"][aria-haspopup="menu"]',
++        )).filter(isVisible);
++        if (currentModelButtons.length === 1) return currentModelButtons[0];
++        if (currentModelButtons.length > 1) return null;
++      }
+       const seen = new Set();
+       let gpt56Fallback = null;
+       for (const selector of COMPOSER_EFFORT_PILL_SELECTORS) {

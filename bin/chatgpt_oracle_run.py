@@ -4283,6 +4283,8 @@ def build_parser() -> argparse.ArgumentParser:
     execute_parser.add_argument("--model", choices=EXECUTOR.SUPPORTED_MODELS)
     execute_parser.add_argument("--effort", choices=EXECUTOR.SUPPORTED_EFFORTS)
     execute_parser.add_argument("--app-name")
+    execute_parser.add_argument("--retry-from-run", type=Path)
+    execute_parser.add_argument("--confirm-uncertain-retry", action="store_true")
     execute_parser.add_argument("--dry-run", action="store_true")
     reconnect_parser = commands.add_parser("reconnect", help="prompt-free continuation of one ordinary run")
     reconnect_parser.add_argument("--run-dir", type=Path, required=True)
@@ -4425,11 +4427,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                         args.model,
                         args.effort,
                         args.app_name,
+                        args.retry_from_run,
                     )
-                ):
+                ) or args.confirm_uncertain_retry:
                     raise EXECUTOR.ExecutionError(
                         "EXECUTE_ARGUMENTS_CONFLICT",
-                        "--manifest cannot be combined with direct root, mission, run identity, model, effort, or app arguments",
+                        "--manifest cannot be combined with direct root, mission, run identity, model, effort, app, or retry arguments",
                     )
                 payload = EXECUTOR.execute_manifest(args.manifest, dry_run=args.dry_run)
             else:
@@ -4447,7 +4450,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                     effort=args.effort or EXECUTOR.DEFAULT_EFFORT,
                     app_name=args.app_name or EXECUTOR.DEFAULT_APP_NAME,
                 )
-                payload = EXECUTOR.execute_config(config, dry_run=args.dry_run)
+                if args.retry_from_run is not None or args.confirm_uncertain_retry:
+                    payload = EXECUTOR.execute_config(
+                        config,
+                        dry_run=args.dry_run,
+                        retry_from_run=args.retry_from_run,
+                        confirm_uncertain_retry=args.confirm_uncertain_retry,
+                    )
+                else:
+                    payload = EXECUTOR.execute_config(config, dry_run=args.dry_run)
         elif args.command == "reconnect":
             payload = EXECUTOR.reconnect_run(args.run_dir, dry_run=args.dry_run)
         elif args.command == "followup":

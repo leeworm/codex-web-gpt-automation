@@ -132,11 +132,16 @@ The app and every project follow the [shared automation policy](docs/AUTOMATION_
 Planning, research, review, and editing belong in the mission, not separate
 execution modes. Select the model and effort explicitly.
 
-The default compatibility route selects **Latest → Pro (6 Pro)**, never the
-numeric GPT-5.6 row. Use temporary chats. Automatically enable and confirm temporary-chat
-personalization before submission, save the result durably, then close only the owned tab.
+This Windows Plus profile defaults to **GPT-5.6 Sol → High** (`extended`).
+Use temporary chats. Automatically enable and confirm temporary-chat personalization
+before submission, save the result durably, then close only the owned tab.
 Recover that same tab after timeout or connection failure; do not automatically
 resubmit, archive, or restore conversations.
+
+With the managed global AGENTS policy installed, natural routing keeps short,
+mechanical work in native Codex and automatically delegates long, repository-wide,
+multi-file, root-cause, or end-to-end work to the ordinary Oracle route. Pro,
+Extra High, Web Multi, and compatibility routes remain explicit-only.
 
 Project tests and safety rules remain. Forced tool ordering, three audit
 receipts, recurring qualification, and magic completion markers do not.
@@ -149,8 +154,8 @@ Create a UTF-8 mission inside the project and verify identity with a dry run.
 python "$env:USERPROFILE\.codex\bin\chatgpt_oracle_dispatch.py" `
   --project-root C:\project `
   --mission-path C:\project\mission.md `
-  --model latest `
-  --effort pro `
+  --model gpt-5.6-sol `
+  --effort extended `
   --dry-run
 ```
 

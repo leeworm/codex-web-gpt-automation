@@ -9,15 +9,46 @@ records retain their original meaning and are never rewritten by this policy.
 
 - Express planning, research, review, and implementation requirements in the
   mission, not separate execution modes. Select the model and effort explicitly.
-- Oracle 0.20.0 natively selects **Latest** in ChatGPT, then the requested
-  effort. The default is Pro, observed as **6 Pro**. Do not select GPT-5.6
-  numerically to obtain Pro. Only the hash-bound Korean Latest and quota-limited
-  four-tier compatibility fixes remain; retire them when upstream covers both.
-  A disabled Pro option must never silently fall back to another effort.
+- Select the requested model explicitly before the requested effort. This
+  Windows Plus profile defaults to **GPT-5.6 Sol → High** (extended). Its
+  hash-bound Oracle 0.20.0 adapter verifies the current model button, the
+  checked GPT-5.6 Sol radio, the announced High tier, and the Plus slider's
+  0..2 range. If the requested choice or evidence is unavailable, do not
+  submit. Never infer Pro or Extra High from a slider's maximum position.
 - Use temporary chats. The runner enables and confirms temporary-chat personalization before submission; it does not change account settings. If confirmation fails, do not submit.
   Do not silently change account, privacy, app, or permission settings.
 - Check the actual selected model once before submission. Do not duplicate
   that check through multiple receipts or recurring qualification stages.
+
+## Natural Oracle routing
+
+When the user's installed global `AGENTS.md` enables Natural Oracle routing,
+Codex may choose the ordinary Oracle route without requiring the user to add
+"use Oracle" to each request. This is standing delegation for already
+authorized project work, not permission to broaden the task or external side
+effects.
+
+Do not ask for per-run Oracle opt-in when the request is already authorized by
+that standing routing policy.
+
+- Keep short, mechanical, single-file, or quick diagnostic work in native
+  Codex.
+- Prefer Oracle for repository-wide or multi-module analysis, long debugging,
+  investigations spanning many files/logs/web sources, multi-step
+  implementation plus tests/E2E, work likely to exceed roughly 15 minutes, or
+  requests whose stated scope is explicitly end-to-end/root-cause/whole-system.
+- The automatic route is the ordinary `@codex` DevSpace mission with the exact
+  approved root and **GPT-5.6 Sol → High** (`extended`). Pro, Extra High, Web
+  Multi, comprehensive, and compatibility routes are never selected merely
+  because the task is large; they require explicit user intent.
+- A compatible unresolved run for the same owner/root is recovered exactly.
+  Never submit a second prompt just because the first run is slow, detached,
+  timed out, or temporarily unobservable.
+- Native Codex remains the commander and is responsible for scope, ownership,
+  final local tests, and integrating the durable result.
+- If the web route is unavailable before submission, native Codex may continue
+  only when it can meet the same objective and evidence standard. Never silently
+  downgrade model, effort, root, transport, or quality gates.
 
 ## Results and tab ownership
 
@@ -45,7 +76,8 @@ records retain their original meaning and are never rewritten by this policy.
   audits. Stop testing after relevant checks pass unless new evidence warrants
   more investigation.
 - Preserve the configured native commander and current user-approved worker
-  routing. This policy does not restore CGW or force web delegation.
+  routing. This policy does not restore CGW. Web delegation is used only when
+  enabled by the user's installed routing policy or explicitly requested.
 
 ## Adoption
 

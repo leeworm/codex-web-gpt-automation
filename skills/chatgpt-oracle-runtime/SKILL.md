@@ -1,6 +1,6 @@
 ---
 name: chatgpt-oracle-runtime
-description: Execute one user-authorized Oracle temporary-chat mission with explicit model and effort, durable capture, and exact-run recovery.
+description: Execute one user-authorized Oracle temporary-chat mission with explicit model and effort, durable capture, and exact-run recovery. May be selected implicitly by the managed natural-routing policy for long, repository-wide, or multi-stage work.
 ---
 
 # Oracle execution
@@ -9,22 +9,30 @@ Follow the installed `docs/AUTOMATION_POLICY.md`. Use one mission-based flow;
 planning, research, review, and editing are prompt content, not modes. Preserve
 the configured native commander and user-approved delegation.
 
+When the installed global AGENTS policy enables Natural Oracle routing, this
+skill may be selected without the user spelling out "use Oracle" on every
+request. Keep short or mechanical work in native Codex; use this route for the
+long or broad cases defined by that policy. Native Codex remains the owning
+commander and performs the final local verification.
+
 ## Execute
 
 Write the requested objective and scope in a UTF-8 mission inside the approved
 project root. Preview without starting a browser or submitting a prompt:
 
 ```powershell
-python "$env:USERPROFILE\.codex\bin\chatgpt_oracle_run.py" execute --project-root C:\project --mission-path C:\project\mission.md --model latest --effort pro --dry-run
+python "$env:USERPROFILE\.codex\bin\chatgpt_oracle_run.py" execute --project-root C:\project --mission-path C:\project\mission.md --model gpt-5.6-sol --effort extended --dry-run
 ```
 
-For authorized execution remove `--dry-run`. Select the requested effort;
-`extra-high` is also supported. Do not infer permission for an unrelated task
-or silently downgrade. Oracle 0.20.0 receives the native `latest/select`
-request directly. Explicitly click Latest before selecting effort and check
-the observed `6 Pro` selection once.
+For authorized execution remove `--dry-run`. The ordinary Windows Plus default
+is **GPT-5.6 Sol → High (extended)**. Oracle 0.20.0 must verify the selected
+GPT-5.6 Sol model and visible High effort before submission. Do not infer Pro
+or Extra High from a slider maximum and never silently downgrade. Alternative
+models/efforts are used only when the user explicitly requests them and the
+current account exposes them.
 
-Use the configured app name (default `codex`) and exact project root.
+Use the configured DevSpace app mention (default `@codex`) and exact project
+root.
 Do not change authentication, approved roots, account personalization, app
 registration, or permissions. The runner enables and confirms personalization
 for the owned temporary chat before submission without changing account settings.

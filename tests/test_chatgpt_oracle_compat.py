@@ -409,6 +409,281 @@ def test_published_0200_applies_only_bounded_compatibility_patches(
     assert "requested tier is not offered by this slider" in effort_source
 
 
+def test_published_0200_recognizes_current_chatgpt_turn_and_assistant_units(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    compat = load_compat()
+    package = tmp_path / "oracle-0.20.0-current-chat-ui"
+    shutil.copytree(published_020_root(), package)
+    monkeypatch.setattr(compat, "_verify_node_runtime", lambda *_args, **_kwargs: None)
+    compat.ensure_oracle_compatibility(
+        "oracle 0.20.0", package_root=package, backup_root=tmp_path / "backup"
+    )
+
+    turns_module = (package / "dist/src/browser/conversationTurns.js").as_uri()
+    constants_module = (package / "dist/src/browser/constants.js").as_uri()
+    script = f"""
+import {{ buildConversationTurnListExpression }} from {json.dumps(turns_module)};
+import {{ ASSISTANT_ROLE_SELECTOR }} from {json.dumps(constants_module)};
+
+class FakeElement {{
+  constructor(kind) {{
+    this.kind = kind;
+    this.dataset = {{}};
+  }}
+  getAttribute() {{ return null; }}
+  querySelector(selector) {{
+    if (
+      this.kind === 'turn' &&
+      selector.includes('data-chatgpt-search-unit-key') &&
+      selector.includes(':assistant')
+    ) return assistant;
+    return null;
+  }}
+  querySelectorAll() {{ return []; }}
+}}
+
+const assistant = new FakeElement('assistant');
+const turn = new FakeElement('turn');
+globalThis.document = {{
+  querySelectorAll(selector) {{
+    return selector.includes('data-content-search-turn-key') ? [turn] : [];
+  }},
+}};
+
+const turns = eval(buildConversationTurnListExpression());
+console.log(JSON.stringify({{
+  turnCount: turns.length,
+  assistantVisible: Boolean(turns[0]?.querySelector(ASSISTANT_ROLE_SELECTOR)),
+}}));
+"""
+    completed = subprocess.run(
+        [shutil.which("node") or "node", "--input-type=module", "-e", script],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+        encoding="utf-8",
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout) == {"turnCount": 1, "assistantVisible": True}
+
+
+def test_published_0200_prefers_current_assistant_message_body_over_inline_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    compat = load_compat()
+    package = tmp_path / "oracle-0.20.0-current-assistant-body"
+    shutil.copytree(published_020_root(), package)
+    monkeypatch.setattr(compat, "_verify_node_runtime", lambda *_args, **_kwargs: None)
+    compat.ensure_oracle_compatibility(
+        "oracle 0.20.0", package_root=package, backup_root=tmp_path / "backup"
+    )
+
+    source = (package / "dist/src/browser/actions/assistantResponse.js").read_text(encoding="utf-8")
+    source = re.sub(r"^import .*?;\n", "", source, flags=re.MULTILINE)
+    source = """
+const ANSWER_SELECTORS = [];
+const ASSISTANT_ROLE_SELECTOR = '[data-chatgpt-search-unit-key$=":assistant"]';
+const CONVERSATION_TURN_SELECTOR = '[data-content-search-turn-key]';
+const COPY_BUTTON_SELECTOR = '';
+const FINISHED_ACTIONS_SELECTOR = '';
+const STOP_BUTTON_SELECTORS = [];
+const buildConversationTurnListExpression = () => '[globalThis.__turn]';
+const buildThinkingActivePredicateJs = () => '';
+const buildThinkingActivityDetailsPredicateJs = (name) => `const ${name} = () => ({ strong: false });`;
+const readThinkingActivity = async () => ({ strong: false });
+const delay = async () => {};
+const logDomFailure = async () => {};
+const logConversationSnapshot = async () => {};
+const buildConversationDebugExpression = () => '';
+const buildClickDispatcher = () => '';
+class BrowserAutomationError extends Error {}
+""" + source
+    assistant_module = tmp_path / "assistantResponse-current-ui.mjs"
+    assistant_module.write_text(source, encoding="utf-8")
+    module_url = assistant_module.as_uri()
+    script = f"""
+import {{ buildAssistantExtractorForTest }} from {json.dumps(module_url)};
+
+class FakeElement {{
+  constructor(kind, text = '') {{
+    this.kind = kind;
+    this.innerText = text;
+    this.textContent = text;
+    this.innerHTML = text;
+    this.dataset = {{}};
+  }}
+  getAttribute() {{ return null; }}
+  matches() {{ return false; }}
+  querySelector(selector) {{
+    if (this.kind === 'turn' && selector.includes('data-chatgpt-search-unit-key')) return assistant;
+    if (this.kind === 'assistant' && selector === '[data-markdown-text-style="assistant-message"]') return body;
+    if (this.kind === 'assistant' && selector === '[class*="markdown"]') return inlineMention;
+    return null;
+  }}
+  querySelectorAll(selector) {{
+    if (selector === 'button' || selector === 'img' || selector === 'button, [role="button"]') return [];
+    return [];
+  }}
+}}
+
+globalThis.HTMLElement = FakeElement;
+const turn = new FakeElement('turn');
+const assistant = new FakeElement('assistant', 'ChatGPT said: FULL ANSWER with @codex reference');
+const body = new FakeElement('body', 'FULL ANSWER with @codex reference');
+const inlineMention = new FakeElement('inline', '@codex');
+globalThis.__turn = turn;
+const extractorSource = buildAssistantExtractorForTest('extractAssistant');
+const result = eval(extractorSource + '; extractAssistant()');
+console.log(JSON.stringify(result));
+"""
+    completed = subprocess.run(
+        [shutil.which("node") or "node", "--input-type=module", "-e", script],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+        encoding="utf-8",
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout)["text"] == "FULL ANSWER with @codex reference"
+
+
+def test_published_0200_live_harvest_correlates_current_user_and_assistant_units(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    compat = load_compat()
+    package = tmp_path / "oracle-0.20.0-current-live-harvest"
+    shutil.copytree(published_020_root(), package)
+    monkeypatch.setattr(compat, "_verify_node_runtime", lambda *_args, **_kwargs: None)
+    compat.ensure_oracle_compatibility(
+        "oracle 0.20.0", package_root=package, backup_root=tmp_path / "backup"
+    )
+
+    source = (package / "dist/src/browser/liveTabs.js").read_text(encoding="utf-8")
+    source = re.sub(r"^import .*?;\n", "", source, flags=re.MULTILINE)
+    source = """
+const ANSWER_SELECTORS = ['[data-chatgpt-search-unit-key$=":assistant"]'];
+const ASSISTANT_ROLE_SELECTOR = '[data-chatgpt-search-unit-key$=":assistant"]';
+const INPUT_SELECTORS = [];
+const MODEL_BUTTON_SELECTOR = '';
+const SEND_BUTTON_SELECTORS = [];
+const STOP_BUTTON_SELECTORS = [];
+const captureAssistantMarkdown = async () => null;
+const readAssistantSnapshot = async () => null;
+const buildConversationTurnListExpression = () => '[globalThis.__turn]';
+const extractStableConversationIdFromUrl = () => null;
+const delay = async () => {};
+""" + source
+    live_module = tmp_path / "liveTabs-current-ui.mjs"
+    live_module.write_text(source, encoding="utf-8")
+    module_url = live_module.as_uri()
+    script = f"""
+import {{ buildTabInspectionExpressionForTest }} from {json.dumps(module_url)};
+
+class FakeElement {{
+  constructor(kind, text = '') {{ this.kind = kind; this.textContent = text; this.innerText = text; }}
+  getAttribute() {{ return null; }}
+  querySelector(selector) {{
+    if (this.kind === 'turn' && selector.includes(':assistant')) return assistant;
+    if (this.kind === 'turn' && selector.includes(':user')) return user;
+    return null;
+  }}
+  contains(node) {{ return this.kind === 'turn' && (node === user || node === assistant); }}
+  compareDocumentPosition(other) {{
+    if (this === other) return 0;
+    if (this.kind === 'turn' && (other === user || other === assistant)) return 4;
+    if (this === user && other === assistant) return 4;
+    if (this === assistant && other === user) return 2;
+    return 0;
+  }}
+  getBoundingClientRect() {{ return {{ width: 100, height: 20 }}; }}
+}}
+
+const turn = new FakeElement('turn');
+const user = new FakeElement('user', 'USER PROMPT');
+const assistant = new FakeElement('assistant', 'ASSISTANT ANSWER');
+globalThis.__turn = turn;
+globalThis.Element = FakeElement;
+globalThis.window = {{ getComputedStyle: () => ({{ display: 'block', visibility: 'visible', opacity: '1' }}) }};
+globalThis.location = {{ href: 'https://chatgpt.com/c/example' }};
+globalThis.document = {{
+  title: 'Example',
+  visibilityState: 'visible',
+  hasFocus: () => true,
+  querySelector: () => null,
+  querySelectorAll(selector) {{
+    if (selector.includes(':assistant')) return [assistant];
+    if (selector.includes(':user')) return [user];
+    return [];
+  }},
+}};
+
+const result = eval(buildTabInspectionExpressionForTest());
+console.log(JSON.stringify({{
+  assistantCount: result.assistantCount,
+  lastAssistantText: result.lastAssistantText,
+  lastUserText: result.lastUserText,
+  assistantFollowsLatestUser: result.assistantFollowsLatestUser,
+}}));
+"""
+    completed = subprocess.run(
+        [shutil.which("node") or "node", "--input-type=module", "-e", script],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+        encoding="utf-8",
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout) == {
+        "assistantCount": 1,
+        "lastAssistantText": "ASSISTANT ANSWER",
+        "lastUserText": "USER PROMPT",
+        "assistantFollowsLatestUser": True,
+    }
+
+
+def test_published_0200_migrates_previous_constants_patch_idempotently(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    compat = load_compat()
+    package = tmp_path / "oracle-0.20.0-previous-constants"
+    shutil.copytree(published_020_root(), package)
+    monkeypatch.setattr(compat, "_verify_node_runtime", lambda *_args, **_kwargs: None)
+
+    target = package / "dist/src/browser/constants.js"
+    old = (
+        b"export const MODEL_BUTTON_SELECTOR = "
+        b"'[data-testid=\"model-switcher-dropdown-button\"], button.__composer-pill[aria-haspopup=\"menu\"]';"
+    )
+    previous = (
+        b"export const MODEL_BUTTON_SELECTOR = "
+        b"'[data-testid=\"model-switcher-dropdown-button\"], button.__composer-pill[aria-haspopup=\"menu\"], "
+        b"button[aria-label=\"Select ChatGPT model\"][aria-haspopup=\"menu\"]';"
+    )
+    target_bytes = target.read_bytes()
+    assert target_bytes.count(old) == 1
+    target.write_bytes(target_bytes.replace(old, previous, 1))
+    assert compat.sha256_file(target) == "5e18b6084b7013090e0267208ce35cf2870b85673f845aad51873ff0cdf14d64"
+
+    first = compat.ensure_oracle_compatibility(
+        "oracle 0.20.0", package_root=package, backup_root=tmp_path / "backup"
+    )
+    assert "dist/src/browser/constants.js" in first["changed"]
+    assert compat.sha256_file(target) == compat.CURRENT_PATCHES["dist/src/browser/constants.js"]["patched"]
+
+    second = compat.ensure_oracle_compatibility(
+        "oracle 0.20.0", package_root=package, backup_root=tmp_path / "backup"
+    )
+    assert "dist/src/browser/constants.js" in second["already_patched"]
+
+
 def test_published_0200_patch_targets_reject_unknown_hash_before_apply(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -637,6 +912,195 @@ console.log(JSON.stringify({{
         "maximum": 4,
         "resolvedState": {"label": "Pro", "index": 4, "level": "pro", "maximum": 4},
     }
+
+
+def test_published_0200_plus_high_picker_shape_verifies_only_exact_checked_sol(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    compat = load_compat()
+    package = tmp_path / "oracle-0.20.0-plus-high-picker"
+    shutil.copytree(published_020_root(), package)
+    monkeypatch.setattr(compat, "_verify_node_runtime", lambda *_args, **_kwargs: None)
+    compat.ensure_oracle_compatibility(
+        "oracle 0.20.0", package_root=package, backup_root=tmp_path / "backup"
+    )
+    target = package / "dist/src/browser/actions/thinkingTime.js"
+    source_text = target.read_text(encoding="utf-8")
+    source_text = source_text.replace(
+        'import { MENU_CONTAINER_SELECTOR, MENU_ITEM_SELECTOR, MODEL_BUTTON_SELECTOR, } from "../constants.js";',
+        'const MENU_CONTAINER_SELECTOR="[role=\\\"menu\\\"]"; '
+        'const MENU_ITEM_SELECTOR="[role=\\\"menuitem\\\"],[role=\\\"menuitemradio\\\"]"; '
+        'const MODEL_BUTTON_SELECTOR=".model-button";',
+    ).replace(
+        'import { logDomFailure } from "../domDebug.js";',
+        'const logDomFailure=async()=>{};',
+    ).replace(
+        'import { buildClickDispatcher } from "./domEvents.js";',
+        'const buildClickDispatcher=()=>"";',
+    ).replace(
+        'import { BrowserAutomationError } from "../../oracle/errors.js";',
+        'class BrowserAutomationError extends Error { constructor(message, details) { super(message); this.details=details; } }',
+    )
+    source_text = (
+        source_text.replace("const INITIAL_WAIT_MS = 150;", "const INITIAL_WAIT_MS = 0;")
+        .replace("const STEP_WAIT_MS = 200;", "const STEP_WAIT_MS = 0;")
+        .replace("const MAX_WAIT_MS = 8000;", "const MAX_WAIT_MS = 30;")
+        .replace("const INTELLIGENCE_WAIT_MS = 2500;", "const INTELLIGENCE_WAIT_MS = 30;")
+    )
+    test_module = tmp_path / "thinkingTime-0200-plus-high-picker.mjs"
+    test_module.write_text(source_text, encoding="utf-8")
+    script = f"""
+import {{ buildThinkingTimeExpressionForTest }} from {json.dumps(test_module.as_uri())};
+let clicks = 0;
+class FakeElement extends EventTarget {{
+  constructor(text = '', attrs = {{}}, children = []) {{
+    super();
+    this._text = text;
+    this.attrs = {{...attrs}};
+    this.children = children;
+    this.parentElement = null;
+    for (const child of children) child.parentElement = this;
+  }}
+  get textContent() {{
+    if (typeof this._text === 'function') return this._text();
+    if (this._text) return this._text;
+    return this.children.map((child) => child.textContent || '').join('');
+  }}
+  getAttribute(name) {{
+    if (!Object.prototype.hasOwnProperty.call(this.attrs, name)) return null;
+    const value = this.attrs[name];
+    return typeof value === 'function' ? value() : value;
+  }}
+  setAttribute(name, value) {{ this.attrs[name] = String(value); }}
+  getBoundingClientRect() {{ return {{ width: 240, height: 40 }}; }}
+  descendants() {{
+    const result = [];
+    const visit = (node) => {{
+      for (const child of node.children || []) {{
+        result.push(child);
+        visit(child);
+      }}
+    }};
+    visit(this);
+    return result;
+  }}
+  querySelectorAll(selector) {{
+    const nodes = this.descendants();
+    const roles = [];
+    if (selector.includes('[role="menuitemradio"]')) roles.push('menuitemradio');
+    if (selector.includes('[role="menuitem"]')) roles.push('menuitem');
+    if (selector.includes('[role="slider"]')) roles.push('slider');
+    let matched = roles.length ? nodes.filter((node) => roles.includes(node.getAttribute('role'))) : [];
+    if (selector.includes('[aria-checked="true"]')) {{
+      matched = matched.filter((node) => node.getAttribute('aria-checked') === 'true');
+    }}
+    if (selector.includes('[data-reasoning-slider="true"]')) {{
+      matched = matched.filter((node) => node.getAttribute('data-reasoning-slider') === 'true');
+    }}
+    return matched;
+  }}
+  querySelector(selector) {{
+    if (
+      selector.includes('composer-intelligence-picker-content') ||
+      selector.includes('composer-model-picker-slider-simple-view') ||
+      selector.includes('[data-model-selection-view="true"]') ||
+      selector.includes('[data-model-picker-view="advanced"]') ||
+      selector.includes('__menu-label') ||
+      selector.includes('class*="menu-label"')
+    ) return null;
+    return this.querySelectorAll(selector)[0] || null;
+  }}
+  matches(selector) {{
+    if (selector === 'button.__composer-pill') return false;
+    if (selector === '.model-button') return false;
+    return false;
+  }}
+  closest(selector) {{
+    let current = this.parentElement;
+    while (current) {{
+      if (selector.includes('[role="menuitem"]') && current.getAttribute('role') === 'menuitem') return current;
+      if (selector.includes('[data-active]') && current.getAttribute('data-active') !== null) return current;
+      current = current.parentElement;
+    }}
+    return null;
+  }}
+  contains(node) {{
+    return node === this || this.descendants().includes(node);
+  }}
+  focus() {{}}
+  get isConnected() {{ return true; }}
+}}
+globalThis.HTMLElement = FakeElement;
+globalThis.window = globalThis;
+globalThis.MouseEvent = class extends Event {{ constructor(type, init) {{ super(type, init); }} }};
+globalThis.PointerEvent = globalThis.MouseEvent;
+globalThis.KeyboardEvent = class extends Event {{
+  constructor(type, init) {{ super(type, init); this.key = init.key; this.code = init.code; }}
+}};
+globalThis.dispatchClickSequence = (item) => {{ clicks += 1; item?.dispatchEvent?.(new Event('click')); }};
+
+const runCase = async (checkedModel, tierText) => {{
+  clicks = 0;
+  const high = new FakeElement(tierText, {{ role: 'menuitem', 'aria-label': 'Select model' }});
+  const power = new FakeElement('', {{ role: 'menuitem', 'aria-label': 'Power' }});
+  const sol = new FakeElement('GPT-5.6 Sol', {{
+    role: 'menuitemradio', 'aria-checked': checkedModel === 'GPT-5.6 Sol' ? 'true' : 'false',
+  }});
+  const old = new FakeElement('GPT-5.5 Leaving on October 14', {{
+    role: 'menuitemradio', 'aria-checked': checkedModel === 'GPT-5.5' ? 'true' : 'false',
+  }});
+  const menu = new FakeElement('', {{ role: 'menu' }}, [high, power, sol, old]);
+  const modelButton = new FakeElement('Thinking effortThinking effort', {{
+    'aria-label': 'Select ChatGPT model',
+    'aria-expanded': 'true',
+    'aria-haspopup': 'menu',
+    'data-state': 'open',
+  }});
+  globalThis.document = {{
+    body: new FakeElement('body'),
+    documentElement: {{ lang: 'en' }},
+    getElementById: () => null,
+    querySelector: () => null,
+    querySelectorAll: (selector) => {{
+      if (selector.includes('button[aria-label="Select ChatGPT model"][aria-haspopup="menu"]')) return [modelButton];
+      if (selector.includes('[role="menu"]')) return [menu];
+      return [];
+    }},
+    dispatchEvent: () => true,
+  }};
+  const expression = buildThinkingTimeExpressionForTest('extended', 'gpt-5.6-sol');
+  const result = await eval(expression);
+  return {{ result, clicks }};
+}};
+console.log(JSON.stringify({{
+  valid: await runCase('GPT-5.6 Sol', 'High'),
+  wrongModel: await runCase('GPT-5.5', 'High'),
+  wrongTier: await runCase('GPT-5.6 Sol', 'Extra High'),
+}}));
+"""
+    completed = subprocess.run(
+        [shutil.which("node") or "node", "--input-type=module", "-e", script],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+        encoding="utf-8",
+    )
+    assert completed.returncode == 0, completed.stderr
+    result = json.loads(completed.stdout)
+    assert result["valid"] == {
+        "result": {
+            "status": "already-selected",
+            "label": "High",
+            "proof": "plus-high-power-menu",
+        },
+        "clicks": 0,
+    }
+    assert result["wrongModel"]["result"]["status"] not in {"already-selected", "switched"}
+    assert result["wrongModel"]["clicks"] == 0
+    assert result["wrongTier"]["result"]["status"] not in {"already-selected", "switched"}
+    assert result["wrongTier"]["clicks"] == 0
 
 
 def test_published_0200_pristine_contract_rejects_any_critical_file_change(

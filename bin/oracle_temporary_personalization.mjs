@@ -18,7 +18,7 @@ export async function enableTemporaryPersonalization() {
   // browser contract bounded to labels observed/supported by this repository,
   // while accepting both the older and current English non-personalized term.
   const labels = {
-    enabled: new Set(['Personalized', '맞춤화', '개인화']),
+    enabled: new Set(['Personalized', '맞춤화', '개인화', '개인화됨']),
     disabled: new Set([
       'Unpersonalized',
       'Non-personalized',
@@ -27,18 +27,32 @@ export async function enableTemporaryPersonalization() {
       '개인화되지 않음',
     ]),
   };
-  const text = element => (element.getAttribute('aria-label') || element.innerText || '').trim();
+  // The current Korean composer labels the popup trigger "개인화됨", while
+  // its accessible name may describe the menu generically. Check both names.
+  const texts = element => [element.getAttribute('aria-label'), element.innerText]
+    .filter(value => typeof value === 'string')
+    .map(value => value.trim());
   const rowText = element => (element.querySelector('.truncate')?.textContent || element.innerText.split('\n')[0] || '').trim();
-  const buttons = kind => [...document.querySelectorAll('button')].filter(element =>
-    visible(element) && labels[kind].has(text(element)));
+  const buttons = kind => [...document.querySelectorAll('button[aria-haspopup="menu"]')].filter(element =>
+    visible(element) && texts(element).some(value => labels[kind].has(value)));
   const temporary = () => location.origin === 'https://chatgpt.com' &&
     new URL(location.href).searchParams.get('temporary-chat') === 'true';
   const assertTemporary = () => { if (!temporary()) throw new Error('Expected an owned temporary ChatGPT conversation'); };
   const selectedRows = () => [...document.querySelectorAll('[role="menuitemradio"]')].filter(element =>
     visible(element) && labels.enabled.has(rowText(element)));
   assertTemporary();
-  const enabledButtons = buttons('enabled');
-  const disabledButtons = buttons('disabled');
+  let enabledButtons = [];
+  let disabledButtons = [];
+  for (let attempt = 0; attempt < 100; attempt++) {
+    assertTemporary();
+    enabledButtons = buttons('enabled');
+    disabledButtons = buttons('disabled');
+    if (enabledButtons.length > 1 || disabledButtons.length > 1) {
+      throw new Error('Temporary personalization control missing or ambiguous');
+    }
+    if (enabledButtons.length === 1 || disabledButtons.length === 1 || selectedRows().length > 0) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
   if (enabledButtons.length > 1 || disabledButtons.length > 1) throw new Error('Temporary personalization control missing or ambiguous');
   if (enabledButtons.length === 1 && disabledButtons.length === 0) return { enabled: true, changed: false };
   if (selectedRows().length === 0) {

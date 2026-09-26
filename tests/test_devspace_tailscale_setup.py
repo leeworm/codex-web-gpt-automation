@@ -183,6 +183,7 @@ def test_setup_plan_has_no_secrets_and_is_explicit_only(tmp_path: Path, monkeypa
         "DEVSPACE_TOOL_MODE": "full",
         "DEVSPACE_OAUTH_SCOPES": "devspace,offline_access",
         "DEVSPACE_SUBAGENTS": "false",
+        "DEVSPACE_TRUST_PROXY": "true",
         "DEVSPACE_LOG_REQUESTS": "false",
         "DEVSPACE_LOG_TOOL_CALLS": "false",
         "DEVSPACE_LOG_SHELL_COMMANDS": "false",
@@ -940,6 +941,7 @@ def test_post_register_always_recycles_service_and_preserves_oauth_state(
     assert launches[0][1]["DEVSPACE_TOOL_MODE"] == "full"
     assert launches[0][1]["DEVSPACE_OAUTH_SCOPES"] == "devspace,offline_access"
     assert launches[0][1]["DEVSPACE_SUBAGENTS"] == "false"
+    assert launches[0][1]["DEVSPACE_TRUST_PROXY"] == "true"
     assert launches[0][0] == module.managed_service_runner_argv()
     assert launches[0][1]["DEVSPACE_LOG_REQUESTS"] == "false"
 
