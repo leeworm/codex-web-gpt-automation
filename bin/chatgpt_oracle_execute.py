@@ -586,8 +586,9 @@ def _authorize_uncertain_retry(
             raise ExecutionError("RETRY_PARENT_MISSION_INVALID", "retry parent mission no longer matches its recorded hash")
         oracle = state.get("oracle") if isinstance(state.get("oracle"), dict) else {}
         binding = oracle.get("binding") if isinstance(oracle.get("binding"), dict) else {}
-        if binding.get("prompt_submitted") is not True or binding.get("session_status") != "error":
+        if binding.get("prompt_submitted") is not True:
             raise ExecutionError("RETRY_PARENT_NOT_ELIGIBLE", "retry parent lacks the recorded uncertain-send state")
+        session_status = str(binding.get("session_status") or "").strip().casefold()
         artifacts = state.get("artifacts") if isinstance(state.get("artifacts"), dict) else {}
         expected_files = {
             "parent_stdout_sha256": parent_dir / "stdout.log",
@@ -612,12 +613,16 @@ def _authorize_uncertain_retry(
             encoding="utf-8", errors="replace"
         )
         prompt_commit_failure = (
+            session_status == "error"
+            and
             "Prompt did not appear in conversation before timeout" in stdout_text
             and '"userMatched":false' in stdout_text
             and '"turnsCount":0' in stdout_text
             and "Recovered ChatGPT conversation did not become ready in time" in reconnect_stderr_text
         )
         assistant_capture_failure = (
+            session_status == "error"
+            and
             "Activated send button" in stdout_text
             and "[browser] conversation url (post-submit) = " in stdout_text
             and "status=response streaming" in stdout_text
@@ -629,7 +634,35 @@ def _authorize_uncertain_retry(
             and "Attempting recovery by reopening the saved conversation URL" in reconnect_stdout_text
             and "Recovered ChatGPT conversation did not become ready in time" in reconnect_stderr_text
         )
-        if not (prompt_commit_failure or assistant_capture_failure):
+        conversation_url = str(binding.get("conversation_url") or "").strip()
+        try:
+            binding_port = int(binding.get("port") or 0)
+            expected_port = int(oracle.get("expected_cdp_port") or 0)
+            reconnect_exit_code = int(state.get("reconnect_exit_code"))
+        except (TypeError, ValueError):
+            binding_port = 0
+            expected_port = 0
+            reconnect_exit_code = 0
+        observer_lost_after_streaming = bool(
+            session_status in {"running", "error"}
+            and conversation_url
+            and str(binding.get("host") or "").strip() in {"127.0.0.1", "localhost", "::1"}
+            and binding_port > 0
+            and binding_port == expected_port
+            and TARGET_ID_RE.fullmatch(str(binding.get("target_id") or "")) is not None
+            and reconnect_exit_code != 0
+            and "Activated send button" in stdout_text
+            and f"[browser] conversation url (post-submit) = {conversation_url}" in stdout_text
+            and f"[browser] conversation url (assistant-wait) = {conversation_url}" in stdout_text
+            and "Waiting for ChatGPT response" in stdout_text
+            and "Confirming the capture is terminal (not a mid-stream/preamble capture)" in stdout_text
+            and "status=response streaming" in stdout_text
+            and "[browser] Waiting for ChatGPT response - " in stdout_text
+            and "No live ChatGPT tab matched session" in reconnect_stdout_text
+            and "Attempting recovery by reopening the saved conversation URL" in reconnect_stdout_text
+            and "Recovered ChatGPT conversation did not become ready in time" in reconnect_stderr_text
+        )
+        if not (prompt_commit_failure or assistant_capture_failure or observer_lost_after_streaming):
             raise ExecutionError("RETRY_EVIDENCE_INSUFFICIENT", "run logs do not prove the exact failed prompt-commit and recovery path")
         active_pids = [
             int(pid)

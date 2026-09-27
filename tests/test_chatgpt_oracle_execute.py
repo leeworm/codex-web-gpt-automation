@@ -1467,6 +1467,75 @@ def test_authorized_retry_accepts_terminal_assistant_capture_and_hydration_failu
     assert ticket["successor_run_id"] == successor_config.run_id
 
 
+def test_authorized_retry_accepts_lost_observer_after_streaming_and_failed_reconnect(
+    executor, execution_paths, monkeypatch
+):
+    root, mission, run_root, _session_root = execution_paths
+    owner = "01234567-89ab-cdef-0123-456789abcdef"
+    monkeypatch.setenv("CODEX_THREAD_ID", owner)
+    monkeypatch.setattr(executor, "_pid_alive", lambda _pid: False)
+    _parent_config, parent_dir, parent_state_path, _parent_state_bytes = create_uncertain_parent_run(
+        executor, root, run_root, owner
+    )
+    conversation_url = "https://chatgpt.com/c/lost-observer?temporary-chat=true"
+    (parent_dir / "stdout.log").write_text(
+        "Session: old-session\n"
+        "Reattach: oracle session old-session\n"
+        "Activated send button\n"
+        f"[browser] conversation url (post-submit) = {conversation_url}\n"
+        f"[browser] conversation url (assistant-wait) = {conversation_url}\n"
+        "Waiting for ChatGPT response\n"
+        "Confirming the capture is terminal (not a mid-stream/preamble capture)\n"
+        "[browser] ChatGPT thinking - 30s elapsed; status=response streaming; source=inline\n"
+        "[browser] Waiting for ChatGPT response - 14m 0s elapsed; no thinking status detected yet.\n",
+        encoding="utf-8",
+    )
+    (parent_dir / "reconnect-stdout.log").write_text(
+        'No live ChatGPT tab matched session "old-session". '
+        "Attempting recovery by reopening the saved conversation URL.\n",
+        encoding="utf-8",
+    )
+    (parent_dir / "reconnect-stderr.log").write_text(
+        "Recovered ChatGPT conversation did not become ready in time.\n",
+        encoding="utf-8",
+    )
+    parent_state = json.loads(parent_state_path.read_text(encoding="utf-8"))
+    parent_state["oracle_process_pid"] = 41001
+    parent_state["reconnect_process_pid"] = 41002
+    parent_state["reconnect_exit_code"] = 1
+    parent_state["oracle"]["binding"] = {
+        "prompt_submitted": True,
+        "session_status": "running",
+        "conversation_url": conversation_url,
+        "host": "127.0.0.1",
+        "port": 43123,
+        "target_id": "B" * 32,
+    }
+    parent_state_path.write_text(
+        json.dumps(parent_state, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    successor_config = executor.make_config(
+        project_root=root,
+        mission_path=mission,
+        run_root=run_root,
+        run_id="authorized-retry-run-lost-observer-0001",
+        model="gpt-5.6-sol",
+        effort="extended",
+        app_name="codex",
+    )
+
+    ticket = executor._authorize_uncertain_retry(
+        successor_config,
+        parent_dir,
+        confirmed=True,
+    )
+
+    assert ticket["authorization"] == "explicit-user-authorized-retry-despite-uncertain-delivery"
+    assert ticket["possible_duplicate_delivery"] is True
+    assert ticket["successor_run_id"] == successor_config.run_id
+
+
 @pytest.mark.parametrize(
     "preflight_error",
     [

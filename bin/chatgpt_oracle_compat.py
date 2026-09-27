@@ -325,9 +325,14 @@ CURRENT_PATCHES = {
     "dist/src/browser/constants.js": {
         "patch": "constants.plus-accessible-model-button.patch",
         "pristine": "a7d1c2cfff33d2ce59dbcf562827b8452ecc229c454dd8cc5aea25fe9dbb3ec6",
-        "patched": "a6badd247faa852371b2050d985bd7dff91827becd27b0e0cadcb622d20ff784",
-        "legacy_patched": ["5e18b6084b7013090e0267208ce35cf2870b85673f845aad51873ff0cdf14d64"],
+        "patched": "b206dd4b4c83982a910036cc0920959690ad15c2c45c7078009641a017b3f483",
+        "legacy_patched": [
+            "a6badd247faa852371b2050d985bd7dff91827becd27b0e0cadcb622d20ff784",
+            "5e18b6084b7013090e0267208ce35cf2870b85673f845aad51873ff0cdf14d64",
+        ],
         "legacy_patches": {
+            "a6badd247faa852371b2050d985bd7dff91827becd27b0e0cadcb622d20ff784":
+                "constants.current-search-units.previous.patch",
             "5e18b6084b7013090e0267208ce35cf2870b85673f845aad51873ff0cdf14d64":
                 "constants.plus-accessible-model-button.previous.patch",
         },

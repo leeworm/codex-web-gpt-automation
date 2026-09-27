@@ -35,10 +35,10 @@ def test_public_profile_is_one_execution_flow(tmp_path: Path):
     contract = profiles.build_execution_contract(project_root=root, mission_path=mission)
 
     assert contract["schema"] == "codex.chatgpt.oracle-execution/v1"
-    assert contract["model"] == "latest"
-    assert contract["effort"] == "pro"
+    assert contract["model"] == "gpt-5.6-sol"
+    assert contract["effort"] == "extended"
     assert contract["app_name"] == "codex"
-    assert contract["oracle_request"] == {"model": "latest", "model_strategy": "select"}
+    assert contract["oracle_request"] == {"model": "gpt-5.6-sol", "model_strategy": "select"}
     assert contract["archive"] == "never"
     assert contract["temporary_chat"] is True
     assert "mode" not in contract

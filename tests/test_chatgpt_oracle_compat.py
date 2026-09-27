@@ -470,6 +470,36 @@ console.log(JSON.stringify({{
     assert json.loads(completed.stdout) == {"turnCount": 1, "assistantVisible": True}
 
 
+
+
+def test_current_0200_constants_patch_tracks_response_completion_aria_actions() -> None:
+    patch_text = (
+        Path(__file__).resolve().parents[1]
+        / "bin"
+        / "oracle-compat"
+        / "0.20.0"
+        / "constants.plus-accessible-model-button.patch"
+    ).read_text(encoding="utf-8")
+
+    assert 'button[aria-label="Rate response"]' in patch_text
+    assert 'button[aria-label="Read aloud"]' in patch_text
+
+def test_published_0200_recognizes_current_response_completion_actions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    compat = load_compat()
+    package = tmp_path / "oracle-0.20.0-current-completion-actions"
+    shutil.copytree(published_020_root(), package)
+    monkeypatch.setattr(compat, "_verify_node_runtime", lambda *_args, **_kwargs: None)
+    compat.ensure_oracle_compatibility(
+        "oracle 0.20.0", package_root=package, backup_root=tmp_path / "backup"
+    )
+
+    constants_source = (package / "dist/src/browser/constants.js").read_text(encoding="utf-8")
+    assert 'button[aria-label="Rate response"]' in constants_source
+    assert 'button[aria-label="Read aloud"]' in constants_source
+
 def test_published_0200_prefers_current_assistant_message_body_over_inline_markdown(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
