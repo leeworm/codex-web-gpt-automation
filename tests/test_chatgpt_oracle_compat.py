@@ -409,6 +409,38 @@ def test_published_0200_applies_only_bounded_compatibility_patches(
     assert "requested tier is not offered by this slider" in effort_source
 
 
+def test_current_notifier_contract_expands_preview_and_opens_full_result() -> None:
+    compat = load_compat()
+    relative = "dist/src/cli/notifier.js"
+
+    assert relative in compat.CURRENT_PATCHES
+    contract = compat.CURRENT_PATCHES[relative]
+    patch_path = compat.patch_root("0.20.0") / contract["patch"]
+    patch_source = patch_path.read_text(encoding="utf-8")
+
+    assert "NOTIFICATION_PREVIEW_MAX_CHARS = 800" in patch_source
+    assert "resolveNotificationDetail" in patch_source
+    assert "metadata?.options?.writeOutputPath" in patch_source
+    assert 'artifact?.kind === "transcript"' in patch_source
+    assert 'typeof response === "string" ? response : response?.activationType' in patch_source
+    assert 'activation !== "activate" && activation !== "click"' in patch_source
+    assert "windowsHide: false" in patch_source
+    assert "openNotificationDetail" in patch_source
+    assert "testHelpers = { sanitizePreview, resolveNotificationDetail, handleNotificationActivation }" in patch_source
+
+
+def test_current_notifier_contract_keeps_windows_action_center_click_alive_after_timeout() -> None:
+    compat = load_compat()
+    contract = compat.CURRENT_PATCHES["dist/src/cli/notifier.js"]
+    patch_source = (compat.patch_root("0.20.0") / contract["patch"]).read_text(encoding="utf-8")
+
+    assert "tryWindowsDurableNotifier" in patch_source
+    assert "WINDOWS_NOTIFICATION_CLICK_TTL_MS" in patch_source
+    assert "process.execPath" in patch_source
+    assert "action === \"timedout\" || action === \"timeout\"" in patch_source
+    assert "action === \"clicked\" || action === \"activate\"" in patch_source
+
+
 def test_published_0200_recognizes_current_chatgpt_turn_and_assistant_units(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

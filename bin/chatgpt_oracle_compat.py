@@ -322,6 +322,15 @@ CURRENT_PRISTINE_FILES = {
 }
 
 CURRENT_PATCHES = {
+    "dist/src/cli/notifier.js": {
+        "patch": "notifier.expanded-preview-click-through.patch",
+        "pristine": "f84032ac63ebd55ecfc0bb32aa5376f41bea0fc3e913d388b48e5eda299a314d",
+        "patched": "5b8593d3b8157f499d008d8f9b9301fb12f1219ee82f724f03f555ab526dc8d0",
+        "legacy_patched": [
+            "1003dfb8b5d65aa9717109d05b3617d0e6f38ad4b1b2f8b7bca5aac85ef11a0b",
+            "2f3ce5c69a2cb3c74e7a2f59f6f1f401abbddc9633f0ce9393931770527d7ebf",
+        ],
+    },
     "dist/src/browser/constants.js": {
         "patch": "constants.plus-accessible-model-button.patch",
         "pristine": "a7d1c2cfff33d2ce59dbcf562827b8452ecc229c454dd8cc5aea25fe9dbb3ec6",

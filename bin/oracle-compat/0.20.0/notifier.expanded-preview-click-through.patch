@@ -1,0 +1,293 @@
+--- a/dist/src/cli/notifier.js
++++ b/dist/src/cli/notifier.js
+@@ -7,7 +7,76 @@
+ import path from "node:path";
+ import { createRequire } from "node:module";
+ import { fileURLToPath } from "node:url";
++import { randomUUID } from "node:crypto";
++import { getOracleHomeDir } from "../oracleHome.js";
+ const ORACLE_EMOJI = "🧿";
++const NOTIFICATION_PREVIEW_MAX_CHARS = 800;
++const NOTIFICATION_PREVIEW_SOURCE_MAX_BYTES = 256 * 1024;
++const WINDOWS_NOTIFICATION_CLICK_TTL_MS = 60 * 60 * 1000;
++const WINDOWS_NOTIFICATION_HELPER_SOURCE = String.raw`
++import net from "node:net";
++import { spawn } from "node:child_process";
++
++const config = JSON.parse(process.argv[1] ?? "{}");
++let closing = false;
++let ttl;
++
++function finish(code = 0) {
++    if (closing)
++        return;
++    closing = true;
++    if (ttl)
++        clearTimeout(ttl);
++    server.close(() => process.exit(code));
++}
++
++function openTarget() {
++    const child = spawn("notepad.exe", [config.targetPath], {
++        detached: true,
++        stdio: "ignore",
++        windowsHide: false,
++    });
++    child.once("spawn", () => {
++        child.unref();
++        finish(0);
++    });
++    child.once("error", () => finish(1));
++}
++
++const server = net.createServer((stream) => {
++    const chunks = [];
++    stream.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
++    stream.on("end", () => {
++        const data = Buffer.concat(chunks).toString("utf16le").replace(/\0+$/g, "");
++        const match = /(?:^|;)action=([^;]+)/i.exec(data);
++        const action = match?.[1]?.trim().toLowerCase();
++        if (action === "clicked" || action === "activate") {
++            openTarget();
++            return;
++        }
++        if (action === "dismissed" || action === "hidden") {
++            finish(0);
++            return;
++        }
++        if (action === "timedout" || action === "timeout") {
++            return;
++        }
++    });
++});
++
++server.once("error", () => process.exit(1));
++server.listen(config.pipeName, () => {
++    const args = ["-t", config.title, "-m", config.message, "-pipeName", config.pipeName, "-d", "short"];
++    if (config.sound)
++        args.push("-s", "Notification.Default");
++    else
++        args.push("-silent");
++    const toast = spawn(config.ntfyToastPath, args, { stdio: "ignore", windowsHide: true });
++    toast.once("error", () => finish(1));
++});
++
++ttl = setTimeout(() => finish(0), config.ttlMs);
++`;
+ export function resolveNotificationSettings({ cliNotify, cliNotifySound, env, config, }) {
+     const defaultEnabled = !(bool(env.CI) || bool(env.SSH_CONNECTION) || muteByConfig(env, config));
+     const envNotify = parseToggle(env.ORACLE_NOTIFY);
+@@ -32,10 +101,23 @@
+         return;
+     }
+     const title = `Oracle${ORACLE_EMOJI} finished`;
+-    const message = buildMessage(payload, sanitizePreview(answerPreview));
++    const detail = await resolveNotificationDetail(payload.sessionId);
++    const message = buildMessage(payload, sanitizePreview(detail?.previewText ?? answerPreview));
++    const notificationCallback = (error, activation) => {
++        if (error) {
++            log(`(notify callback failed: ${describeNotifierError(error)})`);
++            return;
++        }
++        void handleNotificationActivation(activation, detail, log);
++    };
+     try {
+         if (await tryMacNativeNotifier(title, message, settings)) {
+             return;
++        }
++        if (process.platform === "win32" && detail?.path) {
++            if (await tryWindowsDurableNotifier(title, message, settings, detail, log)) {
++                return;
++            }
+         }
+         if (!(await shouldSkipToastedNotifier())) {
+             // Fallback to toasted-notifier (cross-platform). macAppIconOption() is only honored on macOS.
+@@ -43,7 +125,7 @@
+                 title,
+                 message,
+                 sound: settings.sound,
+-            });
++            }, notificationCallback);
+             return;
+         }
+     }
+@@ -52,7 +134,7 @@
+             const repaired = await repairMacNotifier(log);
+             if (repaired) {
+                 try {
+-                    await notifier.notify({ title, message, sound: settings.sound, ...macAppIconOption() });
++                    await notifier.notify({ title, message, sound: settings.sound, ...macAppIconOption() }, notificationCallback);
+                     return;
+                 }
+                 catch (retryError) {
+@@ -81,6 +163,153 @@
+             log(`(notify skipped: osascript fallback failed: ${reason})`);
+         }
+     }
++}
++async function tryWindowsDurableNotifier(title, message, settings, detail, log) {
++    const ntfyToastPath = resolveWindowsNtfyToastPath();
++    if (!ntfyToastPath)
++        return false;
++    try {
++        await fs.access(ntfyToastPath);
++    }
++    catch {
++        return false;
++    }
++    const pipeName = String.raw`\\.\pipe\oracleNotifier-${randomUUID()}`;
++    const config = JSON.stringify({
++        pipeName,
++        targetPath: detail.path,
++        title,
++        message,
++        sound: settings.sound,
++        ntfyToastPath,
++        ttlMs: WINDOWS_NOTIFICATION_CLICK_TTL_MS,
++    });
++    return new Promise((resolve) => {
++        const child = spawn(process.execPath, ["--input-type=module", "--eval", WINDOWS_NOTIFICATION_HELPER_SOURCE, config], {
++            detached: true,
++            stdio: "ignore",
++            windowsHide: true,
++        });
++        child.once("spawn", () => {
++            child.unref();
++            resolve(true);
++        });
++        child.once("error", (error) => {
++            log(`(notify durable Windows helper failed: ${describeNotifierError(error)})`);
++            resolve(false);
++        });
++    });
++}
++function resolveWindowsNtfyToastPath() {
++    try {
++        const req = createRequire(import.meta.url);
++        const modPath = req.resolve("toasted-notifier");
++        return path.join(path.dirname(modPath), "vendor", "ntfyToast", "ntfytoast.exe");
++    }
++    catch {
++        return undefined;
++    }
++}
++async function resolveNotificationDetail(sessionId) {
++    if (!sessionId)
++        return undefined;
++    const sessionDir = path.join(getOracleHomeDir(), "sessions", sessionId);
++    let metadata;
++    try {
++        metadata = JSON.parse(await fs.readFile(path.join(sessionDir, "meta.json"), "utf8"));
++    }
++    catch {
++        metadata = undefined;
++    }
++    const candidates = [];
++    const configuredOutput = resolveMetadataPath(metadata?.options?.writeOutputPath, metadata, sessionDir);
++    if (configuredOutput) {
++        candidates.push({ path: configuredOutput, previewKind: "output" });
++    }
++    const transcriptArtifact = Array.isArray(metadata?.artifacts)
++        ? metadata.artifacts.find((artifact) => artifact?.kind === "transcript" && typeof artifact.path === "string")
++        : undefined;
++    const transcriptPath = resolveMetadataPath(transcriptArtifact?.path, metadata, sessionDir);
++    if (transcriptPath) {
++        candidates.push({ path: transcriptPath, previewKind: "transcript" });
++    }
++    candidates.push({ path: path.join(sessionDir, "output.log"), previewKind: undefined });
++    for (const candidate of candidates) {
++        try {
++            await fs.access(candidate.path);
++            let previewText;
++            if (candidate.previewKind === "output") {
++                previewText = await readNotificationPreviewFile(candidate.path);
++            }
++            else if (candidate.previewKind === "transcript") {
++                previewText = extractTranscriptAnswer(await readNotificationPreviewFile(candidate.path));
++            }
++            return { path: candidate.path, previewText };
++        }
++        catch {
++            // Try the next durable result location.
++        }
++    }
++    return undefined;
++}
++function resolveMetadataPath(candidate, metadata, sessionDir) {
++    if (typeof candidate !== "string" || !candidate.trim())
++        return undefined;
++    if (path.isAbsolute(candidate))
++        return candidate;
++    const base = typeof metadata?.cwd === "string" && metadata.cwd ? metadata.cwd : sessionDir;
++    return path.resolve(base, candidate);
++}
++async function readNotificationPreviewFile(targetPath) {
++    const handle = await fs.open(targetPath, "r");
++    try {
++        const stats = await handle.stat();
++        const length = Math.min(stats.size, NOTIFICATION_PREVIEW_SOURCE_MAX_BYTES);
++        const buffer = Buffer.alloc(length);
++        const { bytesRead } = await handle.read(buffer, 0, length, 0);
++        return buffer.subarray(0, bytesRead).toString("utf8");
++    }
++    finally {
++        await handle.close();
++    }
++}
++function extractTranscriptAnswer(transcript) {
++    const marker = /\r?\n## Answer\r?\n/;
++    const match = marker.exec(transcript);
++    if (!match)
++        return undefined;
++    return transcript.slice(match.index + match[0].length).trim();
++}
++async function handleNotificationActivation(response, detail, log, opener = openNotificationDetail) {
++    const activation = typeof response === "string" ? response : response?.activationType;
++    if ((activation !== "activate" && activation !== "click") || !detail?.path)
++        return false;
++    try {
++        await opener(detail.path, log);
++        return true;
++    }
++    catch (error) {
++        log(`(notify detail open failed: ${describeNotifierError(error)})`);
++        return false;
++    }
++}
++async function openNotificationDetail(targetPath, log) {
++    const command = process.platform === "win32" ? "notepad.exe" : process.platform === "darwin" ? "open" : "xdg-open";
++    return new Promise((resolve) => {
++        const child = spawn(command, [targetPath], {
++            detached: true,
++            stdio: "ignore",
++            windowsHide: false,
++        });
++        child.once("spawn", () => {
++            child.unref();
++            resolve(true);
++        });
++        child.once("error", (error) => {
++            log(`(notify detail open failed: ${describeNotifierError(error)})`);
++            resolve(false);
++        });
++    });
+ }
+ function buildMessage(payload, answerPreview) {
+     const parts = [];
+@@ -121,14 +350,14 @@
+     // Collapse whitespace and trim.
+     text = text.replace(/\s+/g, " ").trim();
+     // Limit length to keep notifications short.
+-    const max = 200;
++    const max = NOTIFICATION_PREVIEW_MAX_CHARS;
+     if (text.length > max) {
+         text = `${text.slice(0, max - 1)}…`;
+     }
+     return text;
+ }
+ // Exposed for unit tests only.
+-export const testHelpers = { sanitizePreview };
++export const testHelpers = { sanitizePreview, resolveNotificationDetail, handleNotificationActivation };
+ function inferCost(payload) {
+     const model = payload.model;
+     const usage = payload.usage;
